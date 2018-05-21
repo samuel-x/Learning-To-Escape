@@ -64,7 +64,7 @@ public class Simulation extends ApplicationAdapter implements InputProcessor {
 		drivingProperties.setProperty("Map", "lecture-preview.tmx");
 		drivingProperties.setProperty("Number_of_Rounds", "20");
 		
-		try (FileReader inStream = new FileReader("Driving.Properties")) {
+		try (FileReader inStream = new FileReader("assets/Driving.Properties")) {
 			drivingProperties.load(inStream);
 		} catch (IOException e) {
 			e.printStackTrace();
