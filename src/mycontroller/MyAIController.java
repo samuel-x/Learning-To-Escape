@@ -22,7 +22,8 @@ public class MyAIController extends CarController {
     // The data structure that holds the car's internal representation of the world map.
     private final HashMap<Coordinate, MapTile> internalWorldMap = super.getMap();
     private final HashMap<Coordinate, MapTile> healthLocations = new HashMap<>();
-    private final HashMap<Coordinate, MapTile> keyLocations = new HashMap<>();
+    // Holds (key #, coordinate) pairs to remember which keys are located where.
+    private final HashMap<Integer, Coordinate> keyLocations = new HashMap<>();
 
     // How many minimum units the wall is away from the player.
     private int wallSensitivity = 2;
@@ -140,8 +141,8 @@ public class MyAIController extends CarController {
                     if (trapTile.getTrap().equals(MyAIController.LAVA)) {
                         lavaTrap = (LavaTrap) mapTile;
                         if (lavaTrap.getKey() != 0) {
-                            // The lava trap contains a key. Save its location.
-                            this.keyLocations.put(coordinate, mapTile);
+                            // The lava trap contains a key. Save its location as a (key #, coordinate) pair.
+                            this.keyLocations.put(lavaTrap.getKey(), coordinate);
                         }
 
                     } else if (trapTile.getTrap().equals(MyAIController.HEALTH)) {
