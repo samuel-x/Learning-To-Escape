@@ -5,11 +5,11 @@ import world.Car;
 
 public class MetaController extends CarController {
 
-    private ReconController recon = null;
+    private ReconController recon;
 
     public MetaController(Car car) {
         super(car);
-        recon = new ReconController(car);
+        this.recon = new ReconController(car);
     }
 
     public void update(float delta) {
