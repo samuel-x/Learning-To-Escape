@@ -7,8 +7,10 @@ import world.Car;
 import world.WorldSpatial;
 
 import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
 
-public class ReconStrategy extends CarController implements DrivingStrategy  {
+public class ReconController extends MetaController  {
     // TODO: Free this from CarController or implement an interface which doesn't rely on their shitty code structure
 
     // How many minimum units the wall is away from the player.
@@ -30,7 +32,11 @@ public class ReconStrategy extends CarController implements DrivingStrategy  {
     Coordinate initialGuess;
     boolean notSouth = true;
 
-    public ReconStrategy (Car car) { super(car); }
+    private HashMap<Coordinate, MapTile> internalMap = getMap();
+
+    public ReconController(Car car) {
+        super(car);
+    }
 
     @Override
     public void update(float delta) {
@@ -39,6 +45,9 @@ public class ReconStrategy extends CarController implements DrivingStrategy  {
 
         // Gets what the car can see
         HashMap<Coordinate, MapTile> currentView = getView();
+
+        // Stitch this with our internalMap
+        stitchMap(currentView);
 
         checkStateChange();
 
@@ -103,6 +112,28 @@ public class ReconStrategy extends CarController implements DrivingStrategy  {
         }
 
 
+
+    }
+
+    private void stitchMap(HashMap<Coordinate, MapTile> currentView) {
+        // Get all of our map tiles and comapre them to our current internal map
+        // If they are different, update our internal map
+        for (Map.Entry<Coordinate, MapTile> entry : currentView.entrySet()) {
+            Coordinate key = entry.getKey();
+            MapTile value = entry.getValue();
+            // If the type of the tile in the internal map is not the same as what we see,
+            // then update it
+            if (internalMap.containsKey(key)) {
+                if (!internalMap.get(key).isType(value.getType())) {
+                    System.out.println("It's not the same, let's add it to our internal map.");
+                    internalMap.replace(key, value);
+                }
+            }
+            else {
+                System.out.println("Putting key...");
+                internalMap.put(key, value);
+            }
+        }
 
     }
 
