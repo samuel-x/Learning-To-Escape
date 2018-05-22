@@ -1,18 +1,28 @@
 package mycontroller;
 
 import controller.CarController;
+import tiles.LavaTrap;
 import tiles.MapTile;
+import tiles.TrapTile;
 import utilities.Coordinate;
 import world.Car;
 import world.WorldSpatial;
 
 import java.util.HashMap;
+import java.util.Map;
 
 public class MyAIController extends CarController {
 
     private static final float DEGREES_IN_FULL_ROTATION = 360;
     private static final float MIN_NUM_DEGREES_IN_TURN = 1;
     private static final float MIN_SPEED_FOR_TURNING = 0.001f;
+    private static final String LAVA = "lava"; // TODO: Find a better location for these two.
+    private static final String HEALTH = "health";
+
+    // The data structure that holds the car's internal representation of the world map.
+    private final HashMap<Coordinate, MapTile> internalWorldMap = super.getMap();
+    private final HashMap<Coordinate, MapTile> healthLocations = new HashMap<>();
+    private final HashMap<Coordinate, MapTile> keyLocations = new HashMap<>();
 
     // How many minimum units the wall is away from the player.
     private int wallSensitivity = 2;
@@ -39,12 +49,109 @@ public class MyAIController extends CarController {
     @Override
     public void update(float delta) {
 
-        // Gets what the car can see
+        // Update the car's internal map with what it can currently see.
         HashMap<Coordinate, MapTile> currentView = getView();
+        updateInternalWorldMap(currentView);
 
         checkStateChange();
 
-        turnOnSpot(170, delta);
+        // If you are not following a wall initially, find a wall to stick to!
+        if(!isFollowingWall){
+            if(getSpeed() < CAR_SPEED){
+                applyForwardAcceleration();
+            }
+            // Turn towards the north
+            if(!getOrientation().equals(WorldSpatial.Direction.NORTH)){
+                lastTurnDirection = WorldSpatial.RelativeDirection.LEFT;
+                applyLeftTurn(getOrientation(),delta);
+            }
+            if(checkNorth(currentView)){
+                // Turn right until we go back to east!
+                if(!getOrientation().equals(WorldSpatial.Direction.EAST)){
+                    lastTurnDirection = WorldSpatial.RelativeDirection.RIGHT;
+                    applyRightTurn(getOrientation(),delta);
+                }
+                else{
+                    isFollowingWall = true;
+                }
+            }
+        }
+        // Once the car is already stuck to a wall, apply the following logic
+        else{
+
+            // Readjust the car if it is misaligned.
+            readjust(lastTurnDirection,delta);
+
+            if(isTurningRight){
+                applyRightTurn(getOrientation(),delta);
+            }
+            else if(isTurningLeft){
+                // Apply the left turn if you are not currently near a wall.
+                if(!checkFollowingWall(getOrientation(),currentView)){
+                    applyLeftTurn(getOrientation(),delta);
+                }
+                else{
+                    isTurningLeft = false;
+                }
+            }
+            // Try to determine whether or not the car is next to a wall.
+            else if(checkFollowingWall(getOrientation(),currentView)){
+                // Maintain some velocity
+                if(getSpeed() < CAR_SPEED){
+                    applyForwardAcceleration();
+                }
+                // If there is wall ahead, turn right!
+                if(checkWallAhead(getOrientation(),currentView)){
+                    lastTurnDirection = WorldSpatial.RelativeDirection.RIGHT;
+                    isTurningRight = true;
+
+                }
+
+            }
+            // This indicates that I can do a left turn if I am not turning right
+            else{
+                lastTurnDirection = WorldSpatial.RelativeDirection.LEFT;
+                isTurningLeft = true;
+            }
+        }
+    }
+
+    /**
+     * Given a view of the map, iterates through each coordinate and updates the car's internal map with any previously
+     * unseen trap tiles. It also saves references to lava tiles with keys and health tiles.
+     * @param view is a HashMap representing the car's current view.
+     */
+    private void updateInternalWorldMap(HashMap<Coordinate, MapTile> view) {
+        MapTile mapTile;
+        TrapTile trapTile;
+        LavaTrap lavaTrap;
+
+        for (Coordinate coordinate : view.keySet()) {
+            mapTile = view.get(coordinate);
+
+            // We're only interested in updating out map with trap tiles, as we know where everything else is already.
+            if (mapTile.isType(MapTile.Type.TRAP)) {
+                // Check if we've already observed this trap tile.
+                if (!this.internalWorldMap.get(coordinate).isType(MapTile.Type.TRAP)) {
+                    // We have not already seen this trap tile. Update the internal map.
+                    this.internalWorldMap.put(coordinate, mapTile);
+
+                    trapTile = (TrapTile) mapTile;
+                    if (trapTile.getTrap().equals(MyAIController.LAVA)) {
+                        lavaTrap = (LavaTrap) mapTile;
+                        if (lavaTrap.getKey() != 0) {
+                            // The lava trap contains a key. Save its location.
+                            this.keyLocations.put(coordinate, mapTile);
+                        }
+
+                    } else if (trapTile.getTrap().equals(MyAIController.HEALTH)) {
+                        // This trap is a health trap. Save its location.
+                        this.healthLocations.put(coordinate, mapTile);
+                    }
+                }
+
+            }
+        }
     }
 
     /**

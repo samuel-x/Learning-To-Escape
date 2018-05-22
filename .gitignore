@@ -160,5 +160,4 @@ hs_err_pid*
 # Custom
 
 # Tiled
-*.XLSIUD
-*.xtgbuH
+*.tmx.*
