@@ -10,6 +10,10 @@ import java.util.HashMap;
 
 public class MyAIController extends CarController {
 
+    private static final float DEGREES_IN_FULL_ROTATION = 360;
+    private static final float MIN_NUM_DEGREES_IN_TURN = 1;
+    private static final float MIN_SPEED_FOR_TURNING = 0.001f;
+
     // How many minimum units the wall is away from the player.
     private int wallSensitivity = 2;
 
@@ -40,64 +44,52 @@ public class MyAIController extends CarController {
 
         checkStateChange();
 
-        // If you are not following a wall initially, find a wall to stick to!
-        if(!isFollowingWall){
-            if(getSpeed() < CAR_SPEED){
-                applyForwardAcceleration();
-            }
-            // Turn towards the north
-            if(!getOrientation().equals(WorldSpatial.Direction.NORTH)){
-                lastTurnDirection = WorldSpatial.RelativeDirection.LEFT;
-                applyLeftTurn(getOrientation(),delta);
-            }
-            if(checkNorth(currentView)){
-                // Turn right until we go back to east!
-                if(!getOrientation().equals(WorldSpatial.Direction.EAST)){
-                    lastTurnDirection = WorldSpatial.RelativeDirection.RIGHT;
-                    applyRightTurn(getOrientation(),delta);
-                }
-                else{
-                    isFollowingWall = true;
-                }
-            }
+        turnOnSpot(170, delta);
+    }
+
+    /**
+     * Given a target angle, turns the car until it's facing 'targetAngle' within MIN_NUM_DEGREES_IN_TURN degrees.
+     * Calculates the direction to turn to turn quickest.
+     * @param targetAngle is the target angle to turn to.
+     * @param delta is the time since the previous frame. Don't mess with this.
+     */
+    private void turnOnSpot(float targetAngle, float delta) {
+        final float angleDelta = getSmallestAngleDelta(getAngle(), targetAngle);
+
+        if (Math.abs(angleDelta) < MyAIController.MIN_NUM_DEGREES_IN_TURN) {
+            // We're close enough. Don't bother.
+            return;
         }
-        // Once the car is already stuck to a wall, apply the following logic
-        else{
 
-            // Readjust the car if it is misaligned.
-            readjust(lastTurnDirection,delta);
+        // Ensure that we're moving forward at least a little bit, so that turning is possible.
+        if (getSpeed() < MIN_SPEED_FOR_TURNING) {
+            applyForwardAcceleration();
+        }
 
-            if(isTurningRight){
-                applyRightTurn(getOrientation(),delta);
-            }
-            else if(isTurningLeft){
-                // Apply the left turn if you are not currently near a wall.
-                if(!checkFollowingWall(getOrientation(),currentView)){
-                    applyLeftTurn(getOrientation(),delta);
-                }
-                else{
-                    isTurningLeft = false;
-                }
-            }
-            // Try to determine whether or not the car is next to a wall.
-            else if(checkFollowingWall(getOrientation(),currentView)){
-                // Maintain some velocity
-                if(getSpeed() < CAR_SPEED){
-                    applyForwardAcceleration();
-                }
-                // If there is wall ahead, turn right!
-                if(checkWallAhead(getOrientation(),currentView)){
-                    lastTurnDirection = WorldSpatial.RelativeDirection.RIGHT;
-                    isTurningRight = true;
+        if (angleDelta > 0) {
+            turnLeft(delta);
+        } else if (angleDelta < 0) {
+            turnRight(delta);
+        }
+    }
 
-                }
+    /**
+     * Given two angles, returns the smallest angle delta to turn from the 'fromAngle' to the 'toAngle' e.g. if called
+     * as getSmallestAngleDelta(10, 60), will return 50. If called as getSmallestAngleDelta(10, 330), will return -40.
+     * Another way to treat this method is that, if it returns a positive number, then turn left to get to 'toAngle'
+     * ASAP. If it returns a negative, then turn right.
+     * @param fromAngle is the starting angle.
+     * @param toAngle is the target angle.
+     * @return the smallest magnitude angle delta to get from 'fromAngle' to 'toAngle'.
+     */
+    private float getSmallestAngleDelta(float fromAngle, float toAngle) {
+        final float leftTurnDelta = toAngle - fromAngle;
+        final float rightTurnDelta = toAngle - fromAngle - MyAIController.DEGREES_IN_FULL_ROTATION;
 
-            }
-            // This indicates that I can do a left turn if I am not turning right
-            else{
-                lastTurnDirection = WorldSpatial.RelativeDirection.LEFT;
-                isTurningLeft = true;
-            }
+        if (Math.abs(leftTurnDelta) < Math.abs(rightTurnDelta)) {
+            return leftTurnDelta;
+        } else {
+            return rightTurnDelta;
         }
     }
 
