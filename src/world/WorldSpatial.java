@@ -7,7 +7,7 @@ package world;
  */
 public class WorldSpatial {
 	
-	public enum Direction { EAST, WEST, SOUTH, NORTH}
+	public enum Direction { EAST, WEST, SOUTH, NORTH }
 	
 	public static enum RelativeDirection { LEFT, RIGHT };
 	
