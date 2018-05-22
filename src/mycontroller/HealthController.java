@@ -2,15 +2,14 @@ package mycontroller;
 
 import controller.CarController;
 import tiles.MapTile;
+import tiles.TrapTile;
 import utilities.Coordinate;
 import world.Car;
 import world.WorldSpatial;
 
 import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
 
-public class ReconController extends CarController  {
+public class HealthController extends CarController  {
 
     // How many minimum units the wall is away from the player.
     private int wallSensitivity = 2;
@@ -27,85 +26,115 @@ public class ReconController extends CarController  {
 
     // Offset used to differentiate between 0 and 360 degrees
     private int EAST_THRESHOLD = 3;
+    private String HEALTH_STRING = "health";
 
     Coordinate initialGuess;
     boolean notSouth = true;
 
 
-    public ReconController(Car car) {
+    public HealthController(Car car) {
         super(car);
     }
 
     @Override
     public void update(float delta) {
 
+
+
         // Gets what the car can see
         HashMap<Coordinate, MapTile> currentView = getView();
 
         checkStateChange();
 
-        // If you are not following a wall initially, find a wall to stick to!
-        if(!isFollowingWall){
-            if(getSpeed() < CAR_SPEED){
-                applyForwardAcceleration();
-            }
-            // Turn towards the north
-            if(!getOrientation().equals(WorldSpatial.Direction.NORTH)){
-                lastTurnDirection = WorldSpatial.RelativeDirection.LEFT;
-                applyLeftTurn(getOrientation(),delta);
-            }
-            if(checkNorth(currentView)){
-                // Turn right until we go back to east!
-                if(!getOrientation().equals(WorldSpatial.Direction.EAST)){
-                    lastTurnDirection = WorldSpatial.RelativeDirection.RIGHT;
-                    applyRightTurn(getOrientation(),delta);
-                }
-                else{
-                    isFollowingWall = true;
-                }
-            }
+        // Check if we're on ice. If we are, stop.
+        if (onIce(currentView)) {
+            applyBrake();
         }
-        // Once the car is already stuck to a wall, apply the following logic
-        else{
-
-            // Readjust the car if it is misaligned.
-            readjust(lastTurnDirection,delta);
-
-            if(isTurningRight){
-                applyRightTurn(getOrientation(),delta);
+        else {
+            if (checkIceAhead(getOrientation(), currentView)) {
+                applyBrake();
             }
-            else if(isTurningLeft){
-                // Apply the left turn if you are not currently near a wall.
-                if(!checkFollowingWall(getOrientation(),currentView)){
-                    applyLeftTurn(getOrientation(),delta);
-                }
-                else{
-                    isTurningLeft = false;
-                }
-            }
-            // Try to determine whether or not the car is next to a wall.
-            else if(checkFollowingWall(getOrientation(),currentView)){
-                // Maintain some velocity
+            // If you are not following a wall initially, find a wall to stick to!
+            if(!isFollowingWall){
                 if(getSpeed() < CAR_SPEED){
                     applyForwardAcceleration();
                 }
-                // If there is wall ahead, turn right!
-                if(checkWallAhead(getOrientation(),currentView)){
-                    lastTurnDirection = WorldSpatial.RelativeDirection.RIGHT;
-                    isTurningRight = true;
+                // Turn towards the north
+                if(!getOrientation().equals(WorldSpatial.Direction.NORTH)){
+                    lastTurnDirection = WorldSpatial.RelativeDirection.LEFT;
+                    applyLeftTurn(getOrientation(),delta);
+                }
+                if(checkNorth(currentView, false)){
+                    // Turn right until we go back to east!
+                    if(!getOrientation().equals(WorldSpatial.Direction.EAST)){
+                        lastTurnDirection = WorldSpatial.RelativeDirection.RIGHT;
+                        applyRightTurn(getOrientation(),delta);
+                    }
+                    else{
+                        isFollowingWall = true;
+                    }
+                }
+            }
+            // Once the car is already stuck to a wall, apply the following logic
+            else {
+
+                // Readjust the car if it is misaligned.
+                readjust(lastTurnDirection,delta);
+
+                if(isTurningRight){
+                    applyRightTurn(getOrientation(),delta);
+                }
+                else if(isTurningLeft){
+                    // Apply the left turn if you are not currently near a wall.
+                    if(!checkFollowingWall(getOrientation(),currentView)){
+                        applyLeftTurn(getOrientation(),delta);
+                    }
+                    else{
+                        isTurningLeft = false;
+                    }
+                }
+                // Try to determine whether or not the car is next to a wall.
+                else if(checkFollowingWall(getOrientation(),currentView)){
+                    // Maintain some velocity
+                    if(getSpeed() < CAR_SPEED){
+                        applyForwardAcceleration();
+                    }
+                    // If there is wall ahead, turn right!
+                    if(checkWallAhead(getOrientation(),currentView)){
+                        lastTurnDirection = WorldSpatial.RelativeDirection.RIGHT;
+                        isTurningRight = true;
+                    }
 
                 }
-
-            }
-            // This indicates that I can do a left turn if I am not turning right
-            else{
-                lastTurnDirection = WorldSpatial.RelativeDirection.LEFT;
-                isTurningLeft = true;
+                // This indicates that I can do a left turn if I am not turning right
+                else{
+                    lastTurnDirection = WorldSpatial.RelativeDirection.LEFT;
+                    isTurningLeft = true;
+                }
             }
         }
 
+    }
 
+    private boolean checkIceAhead(WorldSpatial.Direction orientation, HashMap<Coordinate, MapTile> currentView){
+        switch(orientation){
+            case EAST:
+                return checkEast(currentView, true);
+            case NORTH:
+                return checkNorth(currentView, true);
+            case SOUTH:
+                return checkSouth(currentView, true);
+            case WEST:
+                return checkWest(currentView, true);
+            default:
+                return false;
 
+        }
+    }
+
+    private boolean onIce(HashMap<Coordinate, MapTile> currentView) {
+        Coordinate currentPos = new Coordinate(getPosition()); // this is how they do it it's disgusting
+        return isIceTile(currentView.get(currentPos));
     }
 
     /**
@@ -282,13 +311,13 @@ public class ReconController extends CarController  {
     private boolean checkWallAhead(WorldSpatial.Direction orientation, HashMap<Coordinate, MapTile> currentView){
         switch(orientation){
             case EAST:
-                return checkEast(currentView);
+                return checkEast(currentView, false);
             case NORTH:
-                return checkNorth(currentView);
+                return checkNorth(currentView, false);
             case SOUTH:
-                return checkSouth(currentView);
+                return checkSouth(currentView, false);
             case WEST:
-                return checkWest(currentView);
+                return checkWest(currentView, false);
             default:
                 return false;
 
@@ -305,13 +334,13 @@ public class ReconController extends CarController  {
 
         switch(orientation){
             case EAST:
-                return checkNorth(currentView);
+                return checkNorth(currentView, false);
             case NORTH:
-                return checkWest(currentView);
+                return checkWest(currentView, false);
             case SOUTH:
-                return checkEast(currentView);
+                return checkEast(currentView, false);
             case WEST:
-                return checkSouth(currentView);
+                return checkSouth(currentView, false);
             default:
                 return false;
         }
@@ -327,11 +356,14 @@ public class ReconController extends CarController  {
      * checkNorth will check up to wallSensitivity amount of tiles to the top.
      * checkSouth will check up to wallSensitivity amount of tiles below.
      */
-    public boolean checkEast(HashMap<Coordinate, MapTile> currentView){
+    public boolean checkEast(HashMap<Coordinate, MapTile> currentView, boolean ice){
         // Check tiles to my right
         Coordinate currentPosition = new Coordinate(getPosition());
         for(int i = 0; i <= wallSensitivity; i++){
             MapTile tile = currentView.get(new Coordinate(currentPosition.x+i, currentPosition.y));
+            if (ice && isIceTile(tile)) {
+                return true;
+            }
             if(tile.isType(MapTile.Type.WALL)){
                 return true;
             }
@@ -339,11 +371,17 @@ public class ReconController extends CarController  {
         return false;
     }
 
-    public boolean checkWest(HashMap<Coordinate,MapTile> currentView){
+    public boolean checkWest(HashMap<Coordinate,MapTile> currentView, boolean ice){
         // Check tiles to my left
         Coordinate currentPosition = new Coordinate(getPosition());
         for(int i = 0; i <= wallSensitivity; i++){
             MapTile tile = currentView.get(new Coordinate(currentPosition.x-i, currentPosition.y));
+            if (ice && isIceTile(tile)) {
+                return true;
+            }
+            if (ice && isIceTile(tile)) {
+                return true;
+            }
             if(tile.isType(MapTile.Type.WALL)){
                 return true;
             }
@@ -351,11 +389,14 @@ public class ReconController extends CarController  {
         return false;
     }
 
-    public boolean checkNorth(HashMap<Coordinate,MapTile> currentView){
+    public boolean checkNorth(HashMap<Coordinate,MapTile> currentView, boolean ice){
         // Check tiles to towards the top
         Coordinate currentPosition = new Coordinate(getPosition());
         for(int i = 0; i <= wallSensitivity; i++){
             MapTile tile = currentView.get(new Coordinate(currentPosition.x, currentPosition.y+i));
+            if (ice && isIceTile(tile)) {
+                return true;
+            }
             if(tile.isType(MapTile.Type.WALL)){
                 return true;
             }
@@ -363,16 +404,30 @@ public class ReconController extends CarController  {
         return false;
     }
 
-    public boolean checkSouth(HashMap<Coordinate,MapTile> currentView){
+    public boolean checkSouth(HashMap<Coordinate,MapTile> currentView, boolean ice){
         // Check tiles towards the bottom
         Coordinate currentPosition = new Coordinate(getPosition());
         for(int i = 0; i <= wallSensitivity; i++){
             MapTile tile = currentView.get(new Coordinate(currentPosition.x, currentPosition.y-i));
+            if (ice && isIceTile(tile)) {
+                return true;
+            }
             if(tile.isType(MapTile.Type.WALL)){
                 return true;
             }
         }
         return false;
+    }
+
+    private boolean isIceTile(MapTile tile) {
+        TrapTile current = null;
+        if (tile instanceof TrapTile) {
+            current = (TrapTile) tile;
+        }
+        else {
+            return false;
+        }
+        return current.isType(MapTile.Type.TRAP) && current.getTrap().equals(HEALTH_STRING);
     }
 
     public boolean isFollowingWall() {
@@ -385,9 +440,5 @@ public class ReconController extends CarController  {
 
     public boolean isTurningRight() {
         return isTurningRight;
-    }
-
-    public void setIsFollowingWall(boolean isFollowingWall) {
-        this.isFollowingWall = isFollowingWall;
     }
 }
