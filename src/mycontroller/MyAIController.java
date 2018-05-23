@@ -1,7 +1,9 @@
 package mycontroller;
 
 import controller.CarController;
+import tiles.LavaTrap;
 import tiles.MapTile;
+import tiles.TrapTile;
 import utilities.Coordinate;
 import world.Car;
 import world.World;
@@ -11,12 +13,21 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.PriorityQueue;
 import java.util.Queue;
+import java.util.Map;
 
 public class MyAIController extends CarController {
 
     private static final float DEGREES_IN_FULL_ROTATION = 360;
     private static final float MIN_NUM_DEGREES_IN_TURN = 1;
     private static final float MIN_SPEED_FOR_TURNING = 0.001f;
+    private static final String LAVA = "lava"; // TODO: Find a better location for these two.
+    private static final String HEALTH = "health";
+
+    // The data structure that holds the car's internal representation of the world map.
+    private final HashMap<Coordinate, MapTile> internalWorldMap = super.getMap();
+    private final HashMap<Coordinate, MapTile> healthLocations = new HashMap<>();
+    // Holds (key #, coordinate) pairs to remember which keys are located where.
+    private final HashMap<Integer, Coordinate> keyLocations = new HashMap<>();
 
     // How many minimum units the wall is away from the player.
     private int wallSensitivity = 2;
@@ -49,8 +60,9 @@ public class MyAIController extends CarController {
     @Override
     public void update(float delta) {
 
-        // Gets what the car can see
+        // Update the car's internal map with what it can currently see.
         HashMap<Coordinate, MapTile> currentView = getView();
+        updateInternalWorldMap(currentView);
 
         checkStateChange();
 
@@ -86,14 +98,6 @@ public class MyAIController extends CarController {
 
     private WorldSpatial.Direction getRelativeDirection(Coordinate from, Coordinate to) {
         assert (from.x == to.x || from.y == to.y);
-
-        int xDisplacement = to.x - from.x;
-        if (xDisplacement > 0) {
-            return WorldSpatial.Direction.EAST;
-        } else if (xDisplacement < 0) {
-            return WorldSpatial.Direction.WEST;
-        }
-
         int yDisplacement = to.y - from.y;
         if (yDisplacement > 0) {
             return WorldSpatial.Direction.NORTH;
@@ -118,8 +122,44 @@ public class MyAIController extends CarController {
         } else if (getSpeed() > speed) {
             applyBrake();
         }
+    }
 
-        turnOnSpot(direction, delta);
+    /**
+     * Given a view of the map, iterates through each coordinate and updates the car's internal map with any previously
+     * unseen trap tiles. It also saves references to lava tiles with keys and health tiles.
+     * @param view is a HashMap representing the car's current view.
+     */
+    private void updateInternalWorldMap(HashMap<Coordinate, MapTile> view) {
+        MapTile mapTile;
+        TrapTile trapTile;
+        LavaTrap lavaTrap;
+
+        for (Coordinate coordinate : view.keySet()) {
+            mapTile = view.get(coordinate);
+
+            // We're only interested in updating out map with trap tiles, as we know where everything else is already.
+            if (mapTile.isType(MapTile.Type.TRAP)) {
+                // Check if we've already observed this trap tile.
+                if (!this.internalWorldMap.get(coordinate).isType(MapTile.Type.TRAP)) {
+                    // We have not already seen this trap tile. Update the internal map.
+                    this.internalWorldMap.put(coordinate, mapTile);
+
+                    trapTile = (TrapTile) mapTile;
+                    if (trapTile.getTrap().equals(MyAIController.LAVA)) {
+                        lavaTrap = (LavaTrap) mapTile;
+                        if (lavaTrap.getKey() != 0) {
+                            // The lava trap contains a key. Save its location as a (key #, coordinate) pair.
+                            this.keyLocations.put(lavaTrap.getKey(), coordinate);
+                        }
+
+                    } else if (trapTile.getTrap().equals(MyAIController.HEALTH)) {
+                        // This trap is a health trap. Save its location.
+                        this.healthLocations.put(coordinate, mapTile);
+                    }
+                }
+
+            }
+        }
     }
 
     /**
