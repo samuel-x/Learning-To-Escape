@@ -7,7 +7,10 @@ import world.Car;
 import world.World;
 import world.WorldSpatial;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.PriorityQueue;
+import java.util.Queue;
 
 public class MyAIController extends CarController {
 
@@ -38,7 +41,11 @@ public class MyAIController extends CarController {
     Coordinate initialGuess;
     boolean notSouth = true;
 
-    static int counter = 0;
+    static int TILES_PER_ASTAR = 3;
+    static int tilesSinceLastAstar = 9999;
+    static int counter = 1;
+    static ArrayList<Coordinate> path = null;
+    static WorldSpatial.Direction initDirection = null;
     @Override
     public void update(float delta) {
 
@@ -47,29 +54,34 @@ public class MyAIController extends CarController {
 
         checkStateChange();
 
-        Node[] targets = {new Node(38, 14, 3), new Node(38, 15, 3),
-                new Node(38, 16, 2), new Node(38, 18, 1), new Node(30, 18, 2),
-                new Node(29, 18, 1)};
-
         Coordinate currentPosition = new Coordinate((int) getX(), (int) getY());
-        if (counter >= targets.length) {
+        if (path == null) {// || tilesSinceLastAstar >= TILES_PER_ASTAR) {
+            path = AStar.getShortestPath(World.getMapACTUAL(), currentPosition, new Coordinate(2, 2));
+            initDirection = getRelativeDirection(currentPosition, path.get(counter));
+            tilesSinceLastAstar = 0;
+        }
+//        Node[] targets = {new Node(38, 14, 3), new Node(38, 15, 3),
+//                new Node(38, 16, 2), new Node(38, 18, 1), new Node(30, 18, 2),
+//                new Node(29, 18, 1)};
+//
+        if (counter >= path.size()) {
             applyBrake();
-        } else if (!currentPosition.equals(targets[counter].coordinate)) {
-            Node target = targets[counter];
-            driveInDirection(getRelativeDirection(currentPosition, target.coordinate), target.speed, delta);
+        } else if (counter == 1) {
+            System.out.printf("Current goal #%d: (%d, %d) -> (%d, %d)\n", counter, currentPosition.x, currentPosition.y,
+                    path.get(counter).x, path.get(counter).y);
+            turnOnSpot(initDirection, delta);
+            if (getOrientation() == initDirection) {
+                counter++;
+                tilesSinceLastAstar++;
+            }
+        } else if (!currentPosition.equals(path.get(counter))) {
+            System.out.printf("Current goal #%d: (%d, %d) -> (%d, %d)\n", counter, currentPosition.x, currentPosition.y,
+                    path.get(counter).x, path.get(counter).y);
+            driveInDirection(getRelativeDirection(currentPosition, path.get(counter)), 1.5f, delta);
         } else {
             counter++;
+            tilesSinceLastAstar++;
         }
-
-//        float targetSpeed
-//        Coordinate currentPosition = new Coordinate(38, 13);
-//        Coordinate targetPosition = new Coordinate(38, 14);
-//
-//        if (currentPosition != targetPosition || getSpeed() != targetSpeed) {
-//            driveInDirection(targetPosition, targetSpeed, delta);
-//        } else if (getSpeed() > MIN_SPEED_FOR_TURNING) {
-//            applyBrake();
-//        }
     }
 
     private WorldSpatial.Direction getRelativeDirection(Coordinate from, Coordinate to) {
@@ -88,7 +100,7 @@ public class MyAIController extends CarController {
         } else if (yDisplacement < 0) {
             return WorldSpatial.Direction.SOUTH;
         }
-        System.out.printf("WARNING: (%d, %d) to (%d, %d)\n", from.x, from.y, to.x, to.y);
+
         return null;
     }
 
@@ -101,29 +113,13 @@ public class MyAIController extends CarController {
     // This method also assumes that it should go to an adjacent tile of where the car is now. It is the responsibility
     // of the caller to stop when the car is at the desired coordinate.
     private void driveInDirection(WorldSpatial.Direction direction, float speed, float delta) {
-        final Coordinate currentPosition = new Coordinate((int) getX(), (int) getY());
-
-        if (getSpeed() < speed) {
+        if (getSpeed() < speed && Car.carDirection == Car.State.FORWARD) {
             applyForwardAcceleration();
         } else if (getSpeed() > speed) {
             applyBrake();
         }
 
         turnOnSpot(direction, delta);
-    }
-
-    class Node {
-        final Coordinate coordinate;
-        final float speed;
-        public Node(Coordinate coordinate, float speed) {
-            this.coordinate = coordinate;
-            this.speed = speed;
-        }
-
-        public Node(int x, int y, float speed) {
-            this.coordinate = new Coordinate(x, y);
-            this.speed = speed;
-        }
     }
 
     /**
@@ -160,7 +156,8 @@ public class MyAIController extends CarController {
     private void turnOnSpot(WorldSpatial.Direction direction, float delta) {
         switch (direction) {
             case EAST:
-                turnOnSpot(WorldSpatial.EAST_DEGREE_MIN, delta);
+                turnOnSpot(WorldSpatial.EAST_DEGREE_MIN, delta); // TODO: Fix that this is sometimes fixed by using EAST_DEGREE_MAX
+                // TODO: Also fix that it wants to do (41, 3) -> (42, 3) for some reason.
                 break;
             case NORTH:
                 turnOnSpot(WorldSpatial.NORTH_DEGREE, delta);
