@@ -2,11 +2,12 @@ package mycontroller;
 
 import controller.CarController;
 import mycontroller.strategies.recon.FollowWallController;
+import mycontroller.strategies.recon.ReconStrategy;
 import world.Car;
 
 public class MetaController extends CarController {
 
-    private FollowWallController recon;
+    private ReconStrategy recon;
 
     public MetaController(Car car) {
         super(car);
