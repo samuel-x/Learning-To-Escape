@@ -1,20 +1,27 @@
-package mycontroller;
+package mycontroller.strategies.recon;
 
 import controller.CarController;
+import mycontroller.MetaController;
+import tiles.LavaTrap;
 import tiles.MapTile;
+import tiles.TrapTile;
 import utilities.Coordinate;
 import world.Car;
 import world.WorldSpatial;
 
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.Map;
 
-public class ReconController extends CarController  {
+public class FollowWallController extends CarController implements ReconStrategy {
+
+    private static final float DEGREES_IN_FULL_ROTATION = 360;
+    private static final float MIN_NUM_DEGREES_IN_TURN = 1;
+    private static final float MIN_SPEED_FOR_TURNING = 0.001f;
+    private static final String LAVA = "lava"; // TODO: Find a better location for these two.
+    private static final String HEALTH = "health";
 
     // How many minimum units the wall is away from the player.
     private int wallSensitivity = 2;
-
 
     private boolean isFollowingWall = false; // This is initialized when the car sticks to a wall.
     private WorldSpatial.RelativeDirection lastTurnDirection = null; // Shows the last turn direction the car takes.
@@ -28,21 +35,23 @@ public class ReconController extends CarController  {
     // Offset used to differentiate between 0 and 360 degrees
     private int EAST_THRESHOLD = 3;
 
-    Coordinate initialGuess;
-    boolean notSouth = true;
-
-
-    public ReconController(Car car) {
+    public FollowWallController(Car car) {
         super(car);
     }
 
+    Coordinate initialGuess;
+    boolean notSouth = true;
     @Override
     public void update(float delta) {
-
-        // Gets what the car can see
+        // Update the car's internal map with what it can currently see.
         HashMap<Coordinate, MapTile> currentView = getView();
+        updateInternalWorldMap(currentView);
 
         checkStateChange();
+
+        if(getSpeed() == 0.0) {
+            isFollowingWall = false;
+        }
 
         // If you are not following a wall initially, find a wall to stick to!
         if(!isFollowingWall){
@@ -103,9 +112,115 @@ public class ReconController extends CarController  {
                 isTurningLeft = true;
             }
         }
+    }
+
+    /**
+     * Given a view of the map, iterates through each coordinate and updates the car's internal map with any previously
+     * unseen trap tiles. It also saves references to lava tiles with keys and health tiles.
+     * @param view is a HashMap representing the car's current view.
+     */
+    private void updateInternalWorldMap(HashMap<Coordinate, MapTile> view) {
+        MapTile mapTile;
+        TrapTile trapTile;
+        LavaTrap lavaTrap;
 
 
+        for (Coordinate coordinate : view.keySet()) {
+            mapTile = view.get(coordinate);
 
+            // We're only interested in updating out map with trap tiles, as we know where everything else is already.
+            if (mapTile.isType(MapTile.Type.TRAP)) {
+                // Check if we've already observed this trap tile.
+
+                if (!MetaController.getInternalWorldMap().get(coordinate).isType(MapTile.Type.TRAP)) {
+                    // We have not already seen this trap tile. Update the internal map.
+                    MetaController.getInternalWorldMap().put(coordinate, mapTile);
+                    System.out.println("Stitching the map at " + coordinate);
+
+                    trapTile = (TrapTile) mapTile;
+                    if (trapTile.getTrap().equals(FollowWallController.LAVA)) {
+                        lavaTrap = (LavaTrap) mapTile;
+                        if (lavaTrap.getKey() != 0) {
+                            // The lava trap contains a key. Save its location as a (key #, coordinate) pair.
+                            MetaController.getKeyLocations().put(lavaTrap.getKey(), coordinate);
+                        }
+
+                    } else if (trapTile.getTrap().equals(FollowWallController.HEALTH)) {
+                        // This trap is a health trap. Save its location.
+                        MetaController.getHealthLocations().put(coordinate, mapTile);
+                    }
+                }
+
+            }
+        }
+    }
+
+    /**
+     * Given a target angle, turns the car until it's facing 'targetAngle' within MIN_NUM_DEGREES_IN_TURN degrees.
+     * Calculates the direction to turn to turn quickest.
+     * @param targetAngle is the target angle to turn to.
+     * @param delta is the time since the previous frame. Don't mess with this.
+     */
+    private void turnOnSpot(float targetAngle, float delta) {
+        final float angleDelta = getSmallestAngleDelta(getAngle(), targetAngle);
+
+        if (Math.abs(angleDelta) < FollowWallController.MIN_NUM_DEGREES_IN_TURN) {
+            // We're close enough. Don't bother.
+            return;
+        }
+
+        // Ensure that we're moving forward at least a little bit, so that turning is possible.
+        if (getSpeed() < MIN_SPEED_FOR_TURNING) {
+            applyForwardAcceleration();
+        }
+
+        if (angleDelta > 0) {
+            turnLeft(delta);
+        } else if (angleDelta < 0) {
+            turnRight(delta);
+        }
+    }
+
+    /**
+     * Overloaded variant of turnOnSpot(float, float), where a cardinal direction is provided instead.
+     * @param direction is the target cardinal direction to turn to.
+     * @param delta is the time since the previous frame. Don't mess with this.
+     */
+    private void turnOnSpot(WorldSpatial.Direction direction, float delta) {
+        switch (direction) {
+            case EAST:
+                turnOnSpot(WorldSpatial.EAST_DEGREE_MIN, delta);
+                break;
+            case NORTH:
+                turnOnSpot(WorldSpatial.NORTH_DEGREE, delta);
+                break;
+            case WEST:
+                turnOnSpot(WorldSpatial.WEST_DEGREE, delta);
+                break;
+            case SOUTH:
+                turnOnSpot(WorldSpatial.SOUTH_DEGREE, delta);
+                break;
+        }
+    }
+
+    /**
+     * Given two angles, returns the smallest angle delta to turn from the 'fromAngle' to the 'toAngle' e.g. if called
+     * as getSmallestAngleDelta(10, 60), will return 50. If called as getSmallestAngleDelta(10, 330), will return -40.
+     * Another way to treat this method is that, if it returns a positive number, then turn left to get to 'toAngle'
+     * ASAP. If it returns a negative, then turn right.
+     * @param fromAngle is the starting angle.
+     * @param toAngle is the target angle.
+     * @return the smallest magnitude angle delta to get from 'fromAngle' to 'toAngle'.
+     */
+    private float getSmallestAngleDelta(float fromAngle, float toAngle) {
+        final float leftTurnDelta = toAngle - fromAngle;
+        final float rightTurnDelta = toAngle - fromAngle - FollowWallController.DEGREES_IN_FULL_ROTATION;
+
+        if (Math.abs(leftTurnDelta) < Math.abs(rightTurnDelta)) {
+            return leftTurnDelta;
+        } else {
+            return rightTurnDelta;
+        }
     }
 
     /**
@@ -373,21 +488,5 @@ public class ReconController extends CarController  {
             }
         }
         return false;
-    }
-
-    public boolean isFollowingWall() {
-        return isFollowingWall;
-    }
-
-    public boolean isTurningLeft() {
-        return isTurningLeft;
-    }
-
-    public boolean isTurningRight() {
-        return isTurningRight;
-    }
-
-    public void setIsFollowingWall(boolean isFollowingWall) {
-        this.isFollowingWall = isFollowingWall;
     }
 }
