@@ -1,16 +1,15 @@
-package mycontroller;
+package mycontroller.strategies.recon;
 
 import controller.CarController;
+import mycontroller.strategies.recon.ReconStrategy;
 import tiles.MapTile;
 import utilities.Coordinate;
 import world.Car;
 import world.WorldSpatial;
 
 import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
 
-public class ReconController extends CarController  {
+public class FollowWallController extends CarController implements ReconStrategy {
     // TODO: Free this from CarController or implement an interface which doesn't rely on their shitty code structure
 
     // How many minimum units the wall is away from the player.
@@ -33,7 +32,7 @@ public class ReconController extends CarController  {
     boolean notSouth = true;
 
 
-    public ReconController(Car car) {
+    public FollowWallController(Car car) {
         super(car);
     }
 
