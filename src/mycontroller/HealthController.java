@@ -12,7 +12,7 @@ import java.util.HashMap;
 public class HealthController extends CarController  {
 
     // How many minimum units the wall is away from the player.
-    private int wallSensitivity = 2;
+    private int wallSensitivity = 3;
 
 
     private boolean isFollowingWall = false; // This is initialized when the car sticks to a wall.
@@ -49,10 +49,12 @@ public class HealthController extends CarController  {
         // Check if we're on ice. If we are, stop.
         if (onIce(currentView)) {
             applyBrake();
+            //applyReverseAcceleration();
         }
         else {
             if (checkIceAhead(getOrientation(), currentView)) {
                 applyBrake();
+                //applyReverseAcceleration();
             }
             // If you are not following a wall initially, find a wall to stick to!
             if(!isFollowingWall){

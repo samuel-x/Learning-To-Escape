@@ -5,7 +5,7 @@ import world.Car;
 
 public class MetaController extends CarController {
 
-    private final int HEALTH_THRESHOLD = 100;
+    private final int HEALTH_THRESHOLD = 95;
     private ReconController recon;
     private HealthController healthSeek;
 

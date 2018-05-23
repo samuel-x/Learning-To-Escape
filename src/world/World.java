@@ -39,7 +39,7 @@ public class World {
 	
 	private static String[] LAYER_NAME = {"Road","Utility","Trap","Wall"};
 	
-	private static HashMap<Coordinate,MapTile> mapTiles = new HashMap<Coordinate,MapTile>();
+	public static HashMap<Coordinate,MapTile> mapTiles = new HashMap<Coordinate,MapTile>();
 	private static HashMap<Coordinate,MapTile> providedMapTiles = new HashMap<Coordinate,MapTile>();
 	private static Coordinate start, carStart;
 	private static List<Coordinate> finish = new ArrayList<Coordinate>();
@@ -75,6 +75,7 @@ public class World {
 		// Iterate through all layer names
 		for(String layerName : LAYER_NAME){
 			// Set the layer
+			System.out.printf("Loading layer: %s\n", layerName);
 			TiledMapTileLayer layer = (TiledMapTileLayer) getTiledMap().getLayers().get(layerName);
 			
 			// Iterate through the layers and input them into the hashtable
@@ -185,5 +186,16 @@ public class World {
 		}
 		return providedMapTiles;	
 	}
-	
+
+	public static HashMap<Coordinate,MapTile> getMapACTUAL(){
+		if(providedMapTiles.keySet().size() == 0){ // Lazy initialisation
+			for(Coordinate coord : mapTiles.keySet()){
+				int reverseYAxis = MAP_HEIGHT-coord.y;
+				Coordinate newCoord = new Coordinate(coord.x, reverseYAxis);
+				MapTile current = mapTiles.get(coord);
+				providedMapTiles.put(newCoord, current);
+			}
+		}
+		return providedMapTiles;
+	}
 }

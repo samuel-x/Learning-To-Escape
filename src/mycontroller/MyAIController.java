@@ -4,9 +4,13 @@ import controller.CarController;
 import tiles.MapTile;
 import utilities.Coordinate;
 import world.Car;
+import world.World;
 import world.WorldSpatial;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.PriorityQueue;
+import java.util.Queue;
 
 public class MyAIController extends CarController {
 
@@ -36,6 +40,12 @@ public class MyAIController extends CarController {
 
     Coordinate initialGuess;
     boolean notSouth = true;
+
+    static int TILES_PER_ASTAR = 3;
+    static int tilesSinceLastAstar = 9999;
+    static int counter = 1;
+    static ArrayList<Coordinate> path = null;
+    static WorldSpatial.Direction initDirection = null;
     @Override
     public void update(float delta) {
 
@@ -44,7 +54,72 @@ public class MyAIController extends CarController {
 
         checkStateChange();
 
-        turnOnSpot(170, delta);
+        Coordinate currentPosition = new Coordinate((int) getX(), (int) getY());
+        if (path == null) {// || tilesSinceLastAstar >= TILES_PER_ASTAR) {
+            path = AStar.getShortestPath(World.getMapACTUAL(), currentPosition, new Coordinate(2, 2));
+            initDirection = getRelativeDirection(currentPosition, path.get(counter));
+            tilesSinceLastAstar = 0;
+        }
+//        Node[] targets = {new Node(38, 14, 3), new Node(38, 15, 3),
+//                new Node(38, 16, 2), new Node(38, 18, 1), new Node(30, 18, 2),
+//                new Node(29, 18, 1)};
+//
+        if (counter >= path.size()) {
+            applyBrake();
+        } else if (counter == 1) {
+            System.out.printf("Current goal #%d: (%d, %d) -> (%d, %d)\n", counter, currentPosition.x, currentPosition.y,
+                    path.get(counter).x, path.get(counter).y);
+            turnOnSpot(initDirection, delta);
+            if (getOrientation() == initDirection) {
+                counter++;
+                tilesSinceLastAstar++;
+            }
+        } else if (!currentPosition.equals(path.get(counter))) {
+            System.out.printf("Current goal #%d: (%d, %d) -> (%d, %d)\n", counter, currentPosition.x, currentPosition.y,
+                    path.get(counter).x, path.get(counter).y);
+            driveInDirection(getRelativeDirection(currentPosition, path.get(counter)), 1.4f, delta);
+        } else {
+            counter++;
+            tilesSinceLastAstar++;
+        }
+    }
+
+    private WorldSpatial.Direction getRelativeDirection(Coordinate from, Coordinate to) {
+        assert (from.x == to.x || from.y == to.y);
+
+        int xDisplacement = to.x - from.x;
+        if (xDisplacement > 0) {
+            return WorldSpatial.Direction.EAST;
+        } else if (xDisplacement < 0) {
+            return WorldSpatial.Direction.WEST;
+        }
+
+        int yDisplacement = to.y - from.y;
+        if (yDisplacement > 0) {
+            return WorldSpatial.Direction.NORTH;
+        } else if (yDisplacement < 0) {
+            return WorldSpatial.Direction.SOUTH;
+        }
+
+        return null;
+    }
+
+    // TODO: Assumptions.
+    // This method will never be called for a speed greater than 2/3 (whichever allows for turning 90 degrees within 1
+    // tile. If asked to turn 180 degrees, it better be slow enough to not do a giant circle.
+    // In other words, it is the responsibility of the CALLER of this method to ensure that it is driving slow enough
+    // such that this method does not drive off course. This method assumes reasonable speeds. This means that
+    // Dijkstra's should slow down sufficiently before turning.
+    // This method also assumes that it should go to an adjacent tile of where the car is now. It is the responsibility
+    // of the caller to stop when the car is at the desired coordinate.
+    private void driveInDirection(WorldSpatial.Direction direction, float speed, float delta) {
+        if (getSpeed() < speed && Car.carDirection == Car.State.FORWARD) {
+            applyForwardAcceleration();
+        } else if (getSpeed() > speed) {
+            applyBrake();
+        }
+
+        turnOnSpot(direction, delta);
     }
 
     /**
@@ -70,6 +145,29 @@ public class MyAIController extends CarController {
             turnLeft(delta);
         } else if (angleDelta < 0) {
             turnRight(delta);
+        }
+    }
+
+    /**
+     * Overloaded variant of turnOnSpot(float, float), where a cardinal direction is provided instead.
+     * @param direction is the target cardinal direction to turn to.
+     * @param delta is the time since the previous frame. Don't mess with this.
+     */
+    private void turnOnSpot(WorldSpatial.Direction direction, float delta) {
+        switch (direction) {
+            case EAST:
+                turnOnSpot(WorldSpatial.EAST_DEGREE_MIN, delta); // TODO: Fix that this is sometimes fixed by using EAST_DEGREE_MAX
+                // TODO: Also fix that it wants to do (41, 3) -> (42, 3) for some reason.
+                break;
+            case NORTH:
+                turnOnSpot(WorldSpatial.NORTH_DEGREE, delta);
+                break;
+            case WEST:
+                turnOnSpot(WorldSpatial.WEST_DEGREE, delta);
+                break;
+            case SOUTH:
+                turnOnSpot(WorldSpatial.SOUTH_DEGREE, delta);
+                break;
         }
     }
 
