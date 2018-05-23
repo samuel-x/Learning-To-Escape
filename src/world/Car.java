@@ -83,13 +83,14 @@ public class Car extends Sprite{
 			setX(World.getCarStart().x);
 			setY(World.getCarStart().y);
 		}
-		CAR_WIDTH = (int) sprite.getWidth();
+        CAR_WIDTH = (int) Math.min(sprite.getWidth(),sprite.getHeight());
 		CAR_HEIGHT = (int) sprite.getHeight();
 
 		this.currentOrientation = WorldSpatial.Direction.EAST;
 	}
 
 	public void update(float delta) {
+        System.out.printf("Direction: %s\n", carDirection);
 			if(Simulation.DEBUG_MODE){
 				printDebug();
 			}
@@ -336,12 +337,12 @@ public class Car extends Sprite{
 		else if (this.velocity.len() < 2 * EPSILON){
 			this.velocity.x = 0;
 			this.velocity.y = 0;
-			if(carDirection.equals(State.FORWARD)){
-				carDirection = State.REVERSE;
-			}
-			else{
-				carDirection = State.FORWARD;
-			}
+//			if(carDirection.equals(State.FORWARD)){
+//				carDirection = State.REVERSE;
+//			}
+//			else{
+//				carDirection = State.FORWARD;
+//			}
 			if(wasReversing){
 				wasReversing = false;
 			}

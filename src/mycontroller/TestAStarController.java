@@ -1,21 +1,18 @@
 package mycontroller;
 
 import controller.CarController;
+import mycontroller.strategies.pathing.AStarController;
 import tiles.LavaTrap;
 import tiles.MapTile;
 import tiles.TrapTile;
 import utilities.Coordinate;
 import world.Car;
-import world.World;
 import world.WorldSpatial;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.PriorityQueue;
-import java.util.Queue;
-import java.util.Map;
 
-public class MyAIController extends CarController {
+public class TestAStarController extends CarController {
 
     private static final float DEGREES_IN_FULL_ROTATION = 360;
     private static final float MIN_NUM_DEGREES_IN_TURN = 1;
@@ -45,8 +42,12 @@ public class MyAIController extends CarController {
     // Offset used to differentiate between 0 and 360 degrees
     private int EAST_THRESHOLD = 3;
 
-    public MyAIController(Car car) {
+    static AStarController asc;
+    public TestAStarController(Car car) {
         super(car);
+        asc = new AStarController(car);
+        asc.updateMap(internalWorldMap);
+        asc.setDestination(new Coordinate(2, 2));
     }
 
     Coordinate initialGuess;
@@ -63,38 +64,11 @@ public class MyAIController extends CarController {
         // Update the car's internal map with what it can currently see.
         HashMap<Coordinate, MapTile> currentView = getView();
         updateInternalWorldMap(currentView);
+        asc.updateMap(internalWorldMap);
 
-        checkStateChange();
-
-        Coordinate currentPosition = new Coordinate((int) getX(), (int) getY());
-        if (path == null) {// || tilesSinceLastAstar >= TILES_PER_ASTAR) {
-//            path = AStar.getShortestPath(World.getMapACTUAL(), currentPosition, new Coordinate(2, 2));
-            initDirection = getRelativeDirection(currentPosition, path.get(counter));
-            tilesSinceLastAstar = 0;
-        }
-//        Node[] targets = {new Node(38, 14, 3), new Node(38, 15, 3),
-//                new Node(38, 16, 2), new Node(38, 18, 1), new Node(30, 18, 2),
-//                new Node(29, 18, 1)};
-//
-        if (counter >= path.size()) {
-            applyBrake();
-        } else if (counter == 1) {
-            System.out.printf("Current goal #%d: (%d, %d) -> (%d, %d)\n", counter, currentPosition.x, currentPosition.y,
-                    path.get(counter).x, path.get(counter).y);
-            turnOnSpot(initDirection, delta);
-            if (getOrientation() == initDirection) {
-                counter++;
-                tilesSinceLastAstar++;
-            }
-        } else if (!currentPosition.equals(path.get(counter))) {
-            System.out.printf("Current goal #%d: (%d, %d) -> (%d, %d)\n", counter, currentPosition.x, currentPosition.y,
-                    path.get(counter).x, path.get(counter).y);
-            driveInDirection(getRelativeDirection(currentPosition, path.get(counter)), 1.5f, delta);
-        } else {
-            counter++;
-            tilesSinceLastAstar++;
-        }
+        asc.update(delta);
     }
+
 
     private WorldSpatial.Direction getRelativeDirection(Coordinate from, Coordinate to) {
         assert (from.x == to.x || from.y == to.y);
@@ -145,14 +119,14 @@ public class MyAIController extends CarController {
                     this.internalWorldMap.put(coordinate, mapTile);
 
                     trapTile = (TrapTile) mapTile;
-                    if (trapTile.getTrap().equals(MyAIController.LAVA)) {
+                    if (trapTile.getTrap().equals(TestAStarController.LAVA)) {
                         lavaTrap = (LavaTrap) mapTile;
                         if (lavaTrap.getKey() != 0) {
                             // The lava trap contains a key. Save its location as a (key #, coordinate) pair.
                             this.keyLocations.put(lavaTrap.getKey(), coordinate);
                         }
 
-                    } else if (trapTile.getTrap().equals(MyAIController.HEALTH)) {
+                    } else if (trapTile.getTrap().equals(TestAStarController.HEALTH)) {
                         // This trap is a health trap. Save its location.
                         this.healthLocations.put(coordinate, mapTile);
                     }
@@ -171,7 +145,7 @@ public class MyAIController extends CarController {
     private void turnOnSpot(float targetAngle, float delta) {
         final float angleDelta = getSmallestAngleDelta(getAngle(), targetAngle);
 
-        if (Math.abs(angleDelta) < MyAIController.MIN_NUM_DEGREES_IN_TURN) {
+        if (Math.abs(angleDelta) < TestAStarController.MIN_NUM_DEGREES_IN_TURN) {
             // We're close enough. Don't bother.
             return;
         }
@@ -222,7 +196,7 @@ public class MyAIController extends CarController {
      */
     private float getSmallestAngleDelta(float fromAngle, float toAngle) {
         final float leftTurnDelta = toAngle - fromAngle;
-        final float rightTurnDelta = toAngle - fromAngle - MyAIController.DEGREES_IN_FULL_ROTATION;
+        final float rightTurnDelta = toAngle - fromAngle - TestAStarController.DEGREES_IN_FULL_ROTATION;
 
         if (Math.abs(leftTurnDelta) < Math.abs(rightTurnDelta)) {
             return leftTurnDelta;
