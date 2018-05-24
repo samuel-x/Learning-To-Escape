@@ -7,6 +7,7 @@ import mycontroller.strategies.pathing.AStarController;
 import mycontroller.strategies.pathing.PathingStrategy;
 import mycontroller.strategies.recon.FollowWallController;
 import mycontroller.strategies.recon.ReconStrategy;
+import utilities.Coordinate;
 import mycontroller.utilities.Utilities;
 import tiles.LavaTrap;
 import tiles.MapTile;
@@ -19,6 +20,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class MetaController extends CarController {
+
+    private static enum State {RECONNING, HEALING, PATHING};
 
     private final int HEALTH_THRESHOLD = 80;
     private ReconStrategy recon;
@@ -37,12 +40,15 @@ public class MetaController extends CarController {
     private int keys;
     private boolean isHealing;
 
+    private State currentState = RECONNING;
+
     public MetaController(Car car) {
         super(car);
 
         // Initialize concrete implementations of utilized strategies.
         this.recon = new FollowWallController(car);
         this.pathing = new AStarController(car);
+        changeToPathing(new Coordinate(1, 1));
         this.heal = new HealingController(car);
         this.internalWorldMap = super.getMap();
         this.keys = super.getKey();
@@ -58,14 +64,29 @@ public class MetaController extends CarController {
         updateHealingMap();
 
         if (getHealth() < HEALTH_THRESHOLD && !isHealing) {
-            runHealingUpdate(delta);
+            this.currentState = State.HEALING;
         }
         else if (keyLocations.keySet().size() == keys) {
-            runPathingUpdate(delta);
+            this.currentState = State.PATHING;
         }
         else {
-            runReconUpdate(delta);
+            this.currentState = State.RECONNING;
         }
+
+        // Do a bunch of stuff here to determine whether to change the state.
+
+        switch (this.currentState) {
+            case RECONNING:
+                runReconUpdate(delta);
+                break;
+            case HEALING:
+                runHealingUpdate(delta);
+                break;
+            case PATHING:
+                runPathingUpdate(delta);
+                break;
+        }
+
     }
 
     private void runReconUpdate(float delta) {
@@ -101,14 +122,14 @@ public class MetaController extends CarController {
                     System.out.println("Stitching the map at " + coordinate);
 
                     trapTile = (TrapTile) mapTile;
-                    if (trapTile.getTrap().equals(Utilities.LAVA_STR)) {
+                    if (trapTile.getTrap().equals(Utilities.LAVA)) {
                         lavaTrap = (LavaTrap) mapTile;
                         if (lavaTrap.getKey() != 0) {
                             // The lava trap contains a key. Save its location as a (key #, coordinate) pair.
                             keyLocations.put(lavaTrap.getKey(), coordinate);
                         }
 
-                    } else if (trapTile.getTrap().equals(Utilities.HEALTH_STR)) {
+                    } else if (trapTile.getTrap().equals(Utilities.HEALTH)) {
                         // This trap is a health trap. Save its location.
                         healthLocations.add(coordinate);
                     }
@@ -124,7 +145,16 @@ public class MetaController extends CarController {
     }
 
     private void runPathingUpdate(float delta) {
+        pathing.updateMap(this.internalWorldMap);
         pathing.update(delta);
+    }
+
+    private void changeToPathing(Coordinate destination) {
+        assert (this.currentState != State.PATHING);
+
+        pathing.updateMap(this.internalWorldMap);
+        this.pathing.setDestination(destination);
+        this.currentState = State.PATHING;
     }
 
     private MapTile getTileAtCurrentPos() {
