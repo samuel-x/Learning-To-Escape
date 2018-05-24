@@ -5,8 +5,8 @@ import world.WorldSpatial;
 
 public class Utilities {
     
-    public static String LAVA_STR = "lava";
-    public static String HEALTH_STR = "health";
+    public static final String LAVA_STR = "lava";
+    public static final String HEALTH_STR = "health";
     
     public static boolean XOR(boolean b1, boolean b2) {
         return (b1 && !b2) || (!b1 && b2);
