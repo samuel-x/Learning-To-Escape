@@ -90,7 +90,6 @@ public class Car extends Sprite{
 	}
 
 	public void update(float delta) {
-        System.out.printf("Direction: %s\n", carDirection);
 			if(Simulation.DEBUG_MODE){
 				printDebug();
 			}
@@ -337,12 +336,12 @@ public class Car extends Sprite{
 		else if (this.velocity.len() < 2 * EPSILON){
 			this.velocity.x = 0;
 			this.velocity.y = 0;
-//			if(carDirection.equals(State.FORWARD)){
-//				carDirection = State.REVERSE;
-//			}
-//			else{
-//				carDirection = State.FORWARD;
-//			}
+			if(carDirection.equals(State.FORWARD)){
+				carDirection = State.REVERSE;
+			}
+			else{
+				carDirection = State.FORWARD;
+			}
 			if(wasReversing){
 				wasReversing = false;
 			}
