@@ -22,4 +22,9 @@ public class ProbeController extends CarController implements ReconStrategy {
     @Override
     public void updateMap(HashMap<Coordinate, MapTile> map) {
     }
+
+    @Override
+    public void reset() {
+
+    }
 }

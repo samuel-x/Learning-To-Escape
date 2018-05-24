@@ -19,14 +19,14 @@ import static mycontroller.utilities.Utilities.getRelativeDirection;
 public class AStarController extends CarController implements PathingStrategy {
 
     // Speed to go at when we're at our destination's coordinate, but are moving towards its center.
-    private static final float PRE_BRAKE_SPEED = 0.5f;
+    private static final float PRE_BRAKE_SPEED = 0.25f;
     // Units to be within the center of a tile before it counts as having been reached.
-    private static final float MOVEMENT_ACCURACY = 0.2f;
+    private static final float MOVEMENT_ACCURACY = 0.36f;
     // The amount to scale up the speed from brakes in the path.
-    private static final float SPEED_PER_TILE = 1.0f;
+    private static final float SPEED_PER_TILE = 0.8f;
     private static final float DEGREES_IN_FULL_ROTATION = 360.0f;
     // The minimum number of degrees to care about.
-    private static final float MIN_NUM_DEGREES_IN_TURN = 5.0f;
+    private static final float MIN_NUM_DEGREES_IN_TURN = 3.0f;
     // Minimum speed to allow for turning on the spot.
     private static final float MIN_SPEED_FOR_TURNING = 0.01f;
     // Maximum speed to go at any given point.
@@ -59,9 +59,10 @@ public class AStarController extends CarController implements PathingStrategy {
         }
 
         currPosition = Utilities.getCoordinatePosition(getX(), getY());
+        PathUnit currPathUnit = currentPath.get(pathStep);
 
         if (haveNewDestination) {
-            if (isFacing(getAngleTo(destination))) {
+            if (isFacing(getAngleTo(currPathUnit.target))) {
                 // Don't need to stop since we're already facing where we're meant to go. If we stop, then we'll just
                 // accelerate again in the same direction anyway.
                 haveNewDestination = false;
@@ -72,12 +73,10 @@ public class AStarController extends CarController implements PathingStrategy {
             }
         }
 
-        PathUnit currPathUnit = currentPath.get(pathStep);
-        System.out.printf("Speed: %f/%f to (%d, %d)\n", getSpeed(), currPathUnit.speed, currPathUnit.target.x,
-                currPathUnit.target.y);
         if (currPosition.equals(currPathUnit.target)) {
             // We're on the same tile as the target.
-            final float distanceFromTarget = Utilities.getEuclideanDistance(this.currPosition, currPathUnit.target);
+            final float distanceFromTarget = Utilities.getEuclideanDistance(getX(), getY(), currPathUnit.target.x,
+                    currPathUnit.target.y);
             if (distanceFromTarget < MOVEMENT_ACCURACY) {
                 // We've reached our next tile. Get ready to proceed to the next one.
                 pathStep++;
@@ -120,6 +119,7 @@ public class AStarController extends CarController implements PathingStrategy {
      */
     public void setDestination(Coordinate destination) {
         this.destination = destination;
+        currPosition = Utilities.getCoordinatePosition(getX(), getY());
         ArrayList<Coordinate> path = AStar.getShortestPath(this.internalWorldMap,
                 Utilities.getBehindCoordinate(currPosition, getOrientation()), this.currPosition, destination);
 
@@ -143,6 +143,10 @@ public class AStarController extends CarController implements PathingStrategy {
      */
     public void updateMap(HashMap<Coordinate, MapTile> map) {
         this.internalWorldMap = map;
+    }
+
+    public boolean hasArrived() {
+        return pathComplete;
     }
 
     /**
@@ -235,7 +239,6 @@ public class AStarController extends CarController implements PathingStrategy {
 
         // Ensure that we're moving forward at least a little bit, so that turning is possible.
         if (getSpeed() < MIN_SPEED_FOR_TURNING) {
-            System.out.println("Turning: ");
             applyForwardAcceleration();
         }
 

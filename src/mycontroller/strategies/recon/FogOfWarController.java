@@ -41,11 +41,12 @@ public class FogOfWarController extends CarController implements ReconStrategy {
         this.beOnTarget = beOnTarget;
     }
 
+    @Override
     public void update(float delta) {
         currPosition = Utilities.getCoordinatePosition(getX(), getY());
 
         if (beOnTarget && currTarget != null
-                && (currTarget.equals(currPosition) || Utilities.isLava(map, currTarget))) {
+                && (pathing.hasArrived() || Utilities.isLava(map, currTarget))) {
             // We've reached our target or we can see our target and it's lava (don't go in it!).
             currTarget = null;
         }
@@ -53,7 +54,7 @@ public class FogOfWarController extends CarController implements ReconStrategy {
         // Ensure we have a target.
         if (currTarget == null) {
             if (unexploredCoordinates.size() > 0) {
-                currTarget = unexploredCoordinates.remove(0);
+                currTarget = unexploredCoordinates.get(0);
                 pathing.setDestination(currTarget);
             } else {
                 // We don't have a target and there are no more unexplored coordinates. Abort.
@@ -67,6 +68,11 @@ public class FogOfWarController extends CarController implements ReconStrategy {
         pathing.update(delta);
     }
 
+    /**
+     * Updates the controller's internal map.
+     * @param map is the new map.
+     */
+    @Override
     public void updateMap(HashMap<Coordinate, MapTile> map) {
         if (this.map == null) {
             // First time being updated. Populate 'unexploredCoordinates'.
@@ -78,6 +84,14 @@ public class FogOfWarController extends CarController implements ReconStrategy {
 
         // Remove any coordinates that can be seen now from 'unexploredCoordinates'.
         updateUnexploredCoordinates(getView());
+    }
+
+    /**
+     * Resets the current target.
+     */
+    @Override
+    public void reset() {
+        currTarget = null;
     }
 
     private void updateUnexploredCoordinates(HashMap<Coordinate, MapTile> view) {

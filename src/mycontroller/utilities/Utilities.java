@@ -24,7 +24,19 @@ public class Utilities {
      * @return the euclidean distance from 'from' to 'to'.
      */
     public static float getEuclideanDistance(Coordinate from, Coordinate to) {
-        return (float) Math.pow(Math.abs(Math.pow(to.x - from.x, 2)) + Math.pow(to.y - from.y, 2), 0.5);
+        return getEuclideanDistance(from.x, from.y, to.x, to.y);
+    }
+
+    /**
+     * Given float coordinates for two points, determines the euclidean distance between them.
+     * @param x1 is the x coordinate for point 1.
+     * @param y1 is the y coordinate for point 1.
+     * @param x2 is the x coordinate for point 2.
+     * @param y2 is the y coordinate for point 2.
+     * @return the euclidean distance between the two given points.
+     */
+    public static float getEuclideanDistance(float x1, float y1, float x2, float y2) {
+        return (float) Math.pow(Math.abs(Math.pow(x1 - x2, 2)) + Math.pow(y1 - y2, 2), 0.5);
     }
 
     /**

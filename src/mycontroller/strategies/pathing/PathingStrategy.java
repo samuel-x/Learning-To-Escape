@@ -9,4 +9,5 @@ public interface PathingStrategy {
     void update(float delta);
     void updateMap(HashMap<Coordinate, MapTile> map);
     void setDestination(Coordinate destination);
+    boolean hasArrived();
 }
