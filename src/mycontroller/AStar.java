@@ -1,5 +1,6 @@
 package mycontroller;
 
+import mycontroller.utilities.Utilities;
 import tiles.MapTile;
 import tiles.TrapTile;
 import utilities.Coordinate;
@@ -131,9 +132,9 @@ public class AStar {
             final TrapTile trapTile = (TrapTile) mapTile;
 
             // TODO: Macro define trap names.
-            if (trapTile.getTrap().equals("lava")) {
+            if (trapTile.getTrap().equals(Utilities.LAVA)) {
                 gCost *= GCOST_LAVA_MULTIPLIER;
-            } else if (trapTile.getTrap().equals("health")) {
+            } else if (trapTile.getTrap().equals(Utilities.HEALTH)) {
                 gCost *= GCOST_HEALTH_MULTIPLIER;
             }
         }
