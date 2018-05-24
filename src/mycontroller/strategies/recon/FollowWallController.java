@@ -21,7 +21,7 @@ public class FollowWallController extends CarController implements ReconStrategy
     private static final String HEALTH = "health";
 
     // How many minimum units the wall is away from the player.
-    private int wallSensitivity = 1;
+    private int wallSensitivity = 2;
 
     private boolean isFollowingWall = false; // This is initialized when the car sticks to a wall.
     private WorldSpatial.RelativeDirection lastTurnDirection = null; // Shows the last turn direction the car takes.

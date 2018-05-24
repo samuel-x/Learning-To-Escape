@@ -23,7 +23,7 @@ public class MetaController extends CarController {
 
     private static enum State {RECONNING, HEALING, PATHING};
 
-    private final int HEALTH_THRESHOLD = 80;
+    private final int HEALTH_THRESHOLD = 90;
     private ReconStrategy recon;
     private PathingStrategy pathing;
     private HealingStrategy heal;
@@ -40,7 +40,7 @@ public class MetaController extends CarController {
     private int keys;
     private boolean isHealing;
 
-    private State currentState = RECONNING;
+    private State currentState = State.RECONNING;
 
     public MetaController(Car car) {
         super(car);
@@ -48,7 +48,6 @@ public class MetaController extends CarController {
         // Initialize concrete implementations of utilized strategies.
         this.recon = new FollowWallController(car);
         this.pathing = new AStarController(car);
-        changeToPathing(new Coordinate(1, 1));
         this.heal = new HealingController(car);
         this.internalWorldMap = super.getMap();
         this.keys = super.getKey();
@@ -67,7 +66,7 @@ public class MetaController extends CarController {
             this.currentState = State.HEALING;
         }
         else if (keyLocations.keySet().size() == keys) {
-            this.currentState = State.PATHING;
+            changeToPathing(keyLocations.get(keys));
         }
         else {
             this.currentState = State.RECONNING;
@@ -94,8 +93,35 @@ public class MetaController extends CarController {
     }
 
     private void runHealingUpdate(float delta) {
-        this.isHealing = Utilities.isHealth(getTileAtCurrentPos());
-        heal.update(delta);
+        this.isHealing = true;
+        if (!Utilities.isHealth(getTileAtCurrentPos()) && getHealth() < 100) {
+            heal.update(delta);
+        }
+        else {
+            isHealing = false;
+        }
+    }
+
+    private void updateHealingMap() {
+        heal.updateHealingPositions(this.healthLocations);
+        heal.updateMap(this.internalWorldMap);
+    }
+
+    private void runPathingUpdate(float delta) {
+        pathing.updateMap(this.internalWorldMap);
+        pathing.update(delta);
+    }
+
+    private void changeToPathing(Coordinate destination) {
+        assert (this.currentState != State.PATHING);
+
+        pathing.updateMap(this.internalWorldMap);
+        this.pathing.setDestination(destination);
+        this.currentState = State.PATHING;
+    }
+
+    private MapTile getTileAtCurrentPos() {
+        return this.internalWorldMap.get(Utilities.getCoordinatePosition(this.getX(), this.getY()));
     }
 
     /**
@@ -137,27 +163,5 @@ public class MetaController extends CarController {
 
             }
         }
-    }
-
-    private void updateHealingMap() {
-        heal.updateHealingPositions(this.healthLocations);
-        heal.updateMap(this.internalWorldMap);
-    }
-
-    private void runPathingUpdate(float delta) {
-        pathing.updateMap(this.internalWorldMap);
-        pathing.update(delta);
-    }
-
-    private void changeToPathing(Coordinate destination) {
-        assert (this.currentState != State.PATHING);
-
-        pathing.updateMap(this.internalWorldMap);
-        this.pathing.setDestination(destination);
-        this.currentState = State.PATHING;
-    }
-
-    private MapTile getTileAtCurrentPos() {
-        return this.internalWorldMap.get(Utilities.getCoordinatePosition(this.getX(), this.getY()));
     }
 }

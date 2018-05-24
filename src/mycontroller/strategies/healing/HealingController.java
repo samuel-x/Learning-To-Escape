@@ -28,6 +28,7 @@ public class HealingController extends CarController implements HealingStrategy 
     private boolean inLava;
     private boolean inHealth;
     private Coordinate safePos;
+    private boolean onPath;
     private ArrayList<Coordinate> healingPositions = new ArrayList<>();
 
     private HashMap<Coordinate, MapTile> internalMap = new HashMap<>();
@@ -37,6 +38,7 @@ public class HealingController extends CarController implements HealingStrategy 
         inLava = false;
         inHealth = false;
         safePos = Utilities.getCoordinatePosition(this.getX(), this.getY());
+        path = new AStarController(car);
     }
 
     @Override
@@ -51,24 +53,50 @@ public class HealingController extends CarController implements HealingStrategy 
             safePos = Utilities.getCoordinatePosition(this.getX(), this.getY());
         }
 
-        // Find the closest healing position
-
-
-        if (inHealth) {
-            applyBrake();
+        if (inHealth && this.getSpeed() == 0.0) {
+            onPath = false;
         }
-        else if (this.getHealth() == MAX_HEALTH){
+
+        if (this.getHealth() == MAX_HEALTH){
             path.setDestination(safePos);
+            onPath = true;
         }
+
+        if (!onPath) {
+            // Find the closest healing position
+            Coordinate healPos = findClosestHealingPos();
+            System.out.println("Attempting to go heal at " + healPos);
+            path.setDestination(healPos);
+            onPath = true;
+        }
+
     }
 
     @Override
     public void updateMap(HashMap<Coordinate, MapTile> newMap) {
-        internalMap = newMap;
+        this.internalMap = newMap;
+        path.updateMap(internalMap);
     }
     @Override
     public void updateHealingPositions(ArrayList<Coordinate> newHealingPositions) {
-        healingPositions = newHealingPositions;
+        this.healingPositions = newHealingPositions;
     }
 
+    private Coordinate findClosestHealingPos() {
+        Coordinate currentPos = Utilities.getCoordinatePosition(getX(), getY());
+        Coordinate dest = null;
+        Integer shortestPathLength = Integer.MAX_VALUE;
+        for (Coordinate coordinate : healingPositions) {
+            ArrayList<Coordinate> path = AStar.getShortestPath(internalMap,
+                    Utilities.getBehindCoordinate(currentPos, getOrientation()),
+                    currentPos, coordinate);
+            System.out.println("Calculating paths...");
+            if (path.size() < shortestPathLength) {
+                shortestPathLength = path.size();
+                System.out.println("New closest destination at: " + coordinate);
+                dest = coordinate;
+            }
+        }
+        return dest;
+    }
 }
