@@ -55,8 +55,8 @@ public class Car extends Sprite{
 	private static final int WALL_DAMAGE = 5;
 
 
-	private static enum State { FORWARD, REVERSE };
-	private static State carDirection = State.FORWARD;
+	public static enum State { FORWARD, REVERSE };
+	public static State carDirection = State.FORWARD;
 
 	private static int CAR_WIDTH;
 	private static int CAR_HEIGHT;
@@ -83,13 +83,14 @@ public class Car extends Sprite{
 			setX(World.getCarStart().x);
 			setY(World.getCarStart().y);
 		}
-		CAR_WIDTH = (int) sprite.getWidth();
+        CAR_WIDTH = (int) Math.min(sprite.getWidth(),sprite.getHeight());
 		CAR_HEIGHT = (int) sprite.getHeight();
 
 		this.currentOrientation = WorldSpatial.Direction.EAST;
 	}
 
 	public void update(float delta) {
+        System.out.printf("Direction: %s\n", carDirection);
 			if(Simulation.DEBUG_MODE){
 				printDebug();
 			}
@@ -317,7 +318,6 @@ public class Car extends Sprite{
 		this.velocity.setAngle(rotation);
 
 		if((carDirection.equals(State.REVERSE) && accelerating) || (carDirection.equals(State.FORWARD) && reversing)){
-
 			this.velocity.x -= acceleration.x * delta;
 			this.velocity.y -= acceleration.y * delta;
 		}
@@ -334,15 +334,15 @@ public class Car extends Sprite{
 			float scalar = this.velocity.len() / MAX_REVERSE_SPEED;
 			this.velocity.scl(1/scalar);
 		}
-		else if (this.velocity.len() < EPSILON){
+		else if (this.velocity.len() < 2 * EPSILON){
 			this.velocity.x = 0;
 			this.velocity.y = 0;
-			if(carDirection.equals(State.FORWARD)){
-				carDirection = State.REVERSE;
-			}
-			else{
-				carDirection = State.FORWARD;
-			}
+//			if(carDirection.equals(State.FORWARD)){
+//				carDirection = State.REVERSE;
+//			}
+//			else{
+//				carDirection = State.FORWARD;
+//			}
 			if(wasReversing){
 				wasReversing = false;
 			}
