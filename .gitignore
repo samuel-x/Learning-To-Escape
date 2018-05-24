@@ -159,3 +159,6 @@ hs_err_pid*
 
 # Tiled
 *.tmx.*
+
+# Driving Properties
+assets/Driving.Properties

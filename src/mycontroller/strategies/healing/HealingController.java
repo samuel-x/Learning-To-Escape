@@ -4,7 +4,9 @@ import controller.CarController;
 import mycontroller.AStar;
 import mycontroller.MetaController;
 import mycontroller.strategies.healing.HealingStrategy;
+import mycontroller.strategies.pathing.AStarController;
 import mycontroller.strategies.recon.FollowWallController;
+import mycontroller.utilities.Utilities;
 import tiles.LavaTrap;
 import tiles.MapTile;
 import tiles.TrapTile;
@@ -12,172 +14,61 @@ import utilities.Coordinate;
 import world.Car;
 import world.WorldSpatial;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 
 public class HealingController extends CarController implements HealingStrategy {
 
-    AStar astarAlgo;
+    AStarController path;
+
+    private static final int MAX_HEALTH = 100;
 
     private int wallSensitivity = 2;
 
+    private boolean inLava;
+    private boolean inHealth;
+    private Coordinate safePos;
+    private ArrayList<Coordinate> healingPositions = new ArrayList<>();
+
+    private HashMap<Coordinate, MapTile> internalMap = new HashMap<>();
+
     public HealingController(Car car) {
         super(car);
+        inLava = false;
+        inHealth = false;
+        safePos = Utilities.getCoordinatePosition(this.getX(), this.getY());
     }
 
     @Override
     public void update(float delta) {
         HashMap<Coordinate, MapTile> currentView = getView();
-        updateInternalWorldMap(currentView);
 
-        if (onIce(currentView)) {
+        inLava = Utilities.isLava(currentView.get(Utilities.getCoordinatePosition(this.getX(), this.getY())));
+        inHealth = Utilities.isHealth(currentView.get(Utilities.getCoordinatePosition(this.getX(), this.getY())));
+
+        // Check for our current position if it's safe
+        if (!inLava && !inHealth && this.getHealth() < MAX_HEALTH) {
+            safePos = Utilities.getCoordinatePosition(this.getX(), this.getY());
+        }
+
+        // Find the closest healing position
+
+
+        if (inHealth) {
             applyBrake();
-            //applyReverseAcceleration();
         }
-        if (checkIceAhead(getOrientation(), currentView)) {
-            applyBrake();
-            //applyReverseAcceleration();
-        }
-
-    }
-    /**
-     * Given a view of the map, iterates through each coordinate and updates the car's internal map with any previously
-     * unseen trap tiles. It also saves references to lava tiles with keys and health tiles.
-     * @param view is a HashMap representing the car's current view.
-     */
-    private void updateInternalWorldMap(HashMap<Coordinate, MapTile> view) {
-        MapTile mapTile;
-        TrapTile trapTile;
-        LavaTrap lavaTrap;
-
-        for (Coordinate coordinate : view.keySet()) {
-            mapTile = view.get(coordinate);
-
-            // We're only interested in updating out map with trap tiles, as we know where everything else is already.
-            if (mapTile.isType(MapTile.Type.TRAP)) {
-                // Check if we've already observed this trap tile.
-                if (!MetaController.getInternalWorldMap().get(coordinate).isType(MapTile.Type.TRAP)) {
-                    // We have not already seen this trap tile. Update the internal map.
-                    MetaController.getInternalWorldMap().put(coordinate, mapTile);
-
-                    trapTile = (TrapTile) mapTile;
-                    if (trapTile.getTrap().equals("lava")) {
-                        lavaTrap = (LavaTrap) mapTile;
-                        if (lavaTrap.getKey() != 0) {
-                            // The lava trap contains a key. Save its location as a (key #, coordinate) pair.
-                            MetaController.getKeyLocations().put(lavaTrap.getKey(), coordinate);
-                        }
-
-                    } else if (trapTile.getTrap().equals("health")) {
-                        // This trap is a health trap. Save its location.
-                        MetaController.getHealthLocations().put(coordinate, mapTile);
-                    }
-                }
-
-            }
+        else if (this.getHealth() == MAX_HEALTH){
+            path.setDestination(safePos);
         }
     }
 
-    private boolean checkIceAhead(WorldSpatial.Direction orientation, HashMap<Coordinate, MapTile> currentView){
-        switch(orientation){
-            case EAST:
-                return checkEast(currentView, true);
-            case NORTH:
-                return checkNorth(currentView, true);
-            case SOUTH:
-                return checkSouth(currentView, true);
-            case WEST:
-                return checkWest(currentView, true);
-            default:
-                return false;
-
-        }
+    @Override
+    public void updateMap(HashMap<Coordinate, MapTile> newMap) {
+        internalMap = newMap;
+    }
+    @Override
+    public void updateHealingPositions(ArrayList<Coordinate> newHealingPositions) {
+        healingPositions = newHealingPositions;
     }
 
-
-    /**
-     * Method below just iterates through the list and check in the correct coordinates.
-     * i.e. Given your current position is 10,10
-     * checkEast will check up to wallSensitivity amount of tiles to the right.
-     * checkWest will check up to wallSensitivity amount of tiles to the left.
-     * checkNorth will check up to wallSensitivity amount of tiles to the top.
-     * checkSouth will check up to wallSensitivity amount of tiles below.
-     */
-    public boolean checkEast(HashMap<Coordinate, MapTile> currentView, boolean ice){
-        // Check tiles to my right
-        Coordinate currentPosition = new Coordinate(getPosition());
-        for(int i = 0; i <= wallSensitivity; i++){
-            MapTile tile = currentView.get(new Coordinate(currentPosition.x+i, currentPosition.y));
-            if (ice && isIceTile(tile)) {
-                return true;
-            }
-            if(tile.isType(MapTile.Type.WALL)){
-                return true;
-            }
-        }
-        return false;
-    }
-
-    public boolean checkWest(HashMap<Coordinate,MapTile> currentView, boolean ice){
-        // Check tiles to my left
-        Coordinate currentPosition = new Coordinate(getPosition());
-        for(int i = 0; i <= wallSensitivity; i++){
-            MapTile tile = currentView.get(new Coordinate(currentPosition.x-i, currentPosition.y));
-            if (ice && isIceTile(tile)) {
-                return true;
-            }
-            if (ice && isIceTile(tile)) {
-                return true;
-            }
-            if(tile.isType(MapTile.Type.WALL)){
-                return true;
-            }
-        }
-        return false;
-    }
-
-    public boolean checkNorth(HashMap<Coordinate,MapTile> currentView, boolean ice){
-        // Check tiles to towards the top
-        Coordinate currentPosition = new Coordinate(getPosition());
-        for(int i = 0; i <= wallSensitivity; i++){
-            MapTile tile = currentView.get(new Coordinate(currentPosition.x, currentPosition.y+i));
-            if (ice && isIceTile(tile)) {
-                return true;
-            }
-            if(tile.isType(MapTile.Type.WALL)){
-                return true;
-            }
-        }
-        return false;
-    }
-
-    public boolean checkSouth(HashMap<Coordinate,MapTile> currentView, boolean ice){
-        // Check tiles towards the bottom
-        Coordinate currentPosition = new Coordinate(getPosition());
-        for(int i = 0; i <= wallSensitivity; i++){
-            MapTile tile = currentView.get(new Coordinate(currentPosition.x, currentPosition.y-i));
-            if (ice && isIceTile(tile)) {
-                return true;
-            }
-            if(tile.isType(MapTile.Type.WALL)){
-                return true;
-            }
-        }
-        return false;
-    }
-    
-    private boolean onIce(HashMap<Coordinate, MapTile> currentView) {
-        Coordinate currentPos = new Coordinate(getPosition()); // this is how they do it it's disgusting
-        return isIceTile(currentView.get(currentPos));
-    }
-
-    private boolean isIceTile(MapTile tile) {
-        TrapTile current = null;
-        if (tile instanceof TrapTile) {
-            current = (TrapTile) tile;
-        }
-        else {
-            return false;
-        }
-        return current.isType(MapTile.Type.TRAP) && current.getTrap().equals("health");
-    }
 }

@@ -1,7 +1,7 @@
-package mycontroller.strategies.recon;
+package mycontroller;
 
 import controller.CarController;
-import mycontroller.MetaController;
+import mycontroller.strategies.pathing.AStarController;
 import tiles.LavaTrap;
 import tiles.MapTile;
 import tiles.TrapTile;
@@ -9,10 +9,10 @@ import utilities.Coordinate;
 import world.Car;
 import world.WorldSpatial;
 
+import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Map;
 
-public class FollowWallController extends CarController implements ReconStrategy {
+public class TestAStarController extends CarController {
 
     private static final float DEGREES_IN_FULL_ROTATION = 360;
     private static final float MIN_NUM_DEGREES_IN_TURN = 1;
@@ -20,8 +20,15 @@ public class FollowWallController extends CarController implements ReconStrategy
     private static final String LAVA = "lava"; // TODO: Find a better location for these two.
     private static final String HEALTH = "health";
 
+    // The data structure that holds the car's internal representation of the world map.
+    private final HashMap<Coordinate, MapTile> internalWorldMap = super.getMap();
+    private final HashMap<Coordinate, MapTile> healthLocations = new HashMap<>();
+    // Holds (key #, coordinate) pairs to remember which keys are located where.
+    private final HashMap<Integer, Coordinate> keyLocations = new HashMap<>();
+
     // How many minimum units the wall is away from the player.
-    private int wallSensitivity = 1;
+    private int wallSensitivity = 2;
+
 
     private boolean isFollowingWall = false; // This is initialized when the car sticks to a wall.
     private WorldSpatial.RelativeDirection lastTurnDirection = null; // Shows the last turn direction the car takes.
@@ -35,80 +42,96 @@ public class FollowWallController extends CarController implements ReconStrategy
     // Offset used to differentiate between 0 and 360 degrees
     private int EAST_THRESHOLD = 3;
 
-    public FollowWallController(Car car) {
+    static AStarController asc;
+    public TestAStarController(Car car) {
         super(car);
+        asc = new AStarController(car);
+        asc.updateMap(internalWorldMap);
+        asc.setDestination(new Coordinate(2, 2));
     }
 
     Coordinate initialGuess;
     boolean notSouth = true;
+
+    static int TILES_PER_ASTAR = 3;
+    static int tilesSinceLastAstar = 9999;
+    static int counter = 1;
+    static ArrayList<Coordinate> path = null;
+    static WorldSpatial.Direction initDirection = null;
     @Override
     public void update(float delta) {
+
         // Update the car's internal map with what it can currently see.
         HashMap<Coordinate, MapTile> currentView = getView();
+        updateInternalWorldMap(currentView);
+        asc.updateMap(internalWorldMap);
 
-        checkStateChange();
+        asc.update(delta);
+    }
 
-        if(getSpeed() == 0.0) {
-            isFollowingWall = false;
+
+    private WorldSpatial.Direction getRelativeDirection(Coordinate from, Coordinate to) {
+        assert (from.x == to.x || from.y == to.y);
+        int yDisplacement = to.y - from.y;
+        if (yDisplacement > 0) {
+            return WorldSpatial.Direction.NORTH;
+        } else if (yDisplacement < 0) {
+            return WorldSpatial.Direction.SOUTH;
         }
 
-        // If you are not following a wall initially, find a wall to stick to!
-        if(!isFollowingWall){
-            if(getSpeed() < CAR_SPEED){
-                applyForwardAcceleration();
-            }
-            // Turn towards the north
-            if(!getOrientation().equals(WorldSpatial.Direction.NORTH)){
-                lastTurnDirection = WorldSpatial.RelativeDirection.LEFT;
-                applyLeftTurn(getOrientation(),delta);
-            }
-            if(checkNorth(currentView)){
-                // Turn right until we go back to east!
-                if(!getOrientation().equals(WorldSpatial.Direction.EAST)){
-                    lastTurnDirection = WorldSpatial.RelativeDirection.RIGHT;
-                    applyRightTurn(getOrientation(),delta);
-                }
-                else{
-                    isFollowingWall = true;
-                }
-            }
+        return null;
+    }
+
+    // TODO: Assumptions.
+    // This method will never be called for a speed greater than 2/3 (whichever allows for turning 90 degrees within 1
+    // tile. If asked to turn 180 degrees, it better be slow enough to not do a giant circle.
+    // In other words, it is the responsibility of the CALLER of this method to ensure that it is driving slow enough
+    // such that this method does not drive off course. This method assumes reasonable speeds. This means that
+    // Dijkstra's should slow down sufficiently before turning.
+    // This method also assumes that it should go to an adjacent tile of where the car is now. It is the responsibility
+    // of the caller to stop when the car is at the desired coordinate.
+    private void driveInDirection(WorldSpatial.Direction direction, float speed, float delta) {
+        if (getSpeed() < speed && Car.carDirection == Car.State.FORWARD) {
+            applyForwardAcceleration();
+        } else if (getSpeed() > speed) {
+            applyBrake();
         }
-        // Once the car is already stuck to a wall, apply the following logic
-        else{
+    }
 
-            // Readjust the car if it is misaligned.
-            readjust(lastTurnDirection,delta);
+    /**
+     * Given a view of the map, iterates through each coordinate and updates the car's internal map with any previously
+     * unseen trap tiles. It also saves references to lava tiles with keys and health tiles.
+     * @param view is a HashMap representing the car's current view.
+     */
+    private void updateInternalWorldMap(HashMap<Coordinate, MapTile> view) {
+        MapTile mapTile;
+        TrapTile trapTile;
+        LavaTrap lavaTrap;
 
-            if(isTurningRight){
-                applyRightTurn(getOrientation(),delta);
-            }
-            else if(isTurningLeft){
-                // Apply the left turn if you are not currently near a wall.
-                if(!checkFollowingWall(getOrientation(),currentView)){
-                    applyLeftTurn(getOrientation(),delta);
-                }
-                else{
-                    isTurningLeft = false;
-                }
-            }
-            // Try to determine whether or not the car is next to a wall.
-            else if(checkFollowingWall(getOrientation(),currentView)){
-                // Maintain some velocity
-                if(getSpeed() < CAR_SPEED){
-                    applyForwardAcceleration();
-                }
-                // If there is wall ahead, turn right!
-                if(checkWallAhead(getOrientation(),currentView)){
-                    lastTurnDirection = WorldSpatial.RelativeDirection.RIGHT;
-                    isTurningRight = true;
+        for (Coordinate coordinate : view.keySet()) {
+            mapTile = view.get(coordinate);
 
+            // We're only interested in updating out map with trap tiles, as we know where everything else is already.
+            if (mapTile.isType(MapTile.Type.TRAP)) {
+                // Check if we've already observed this trap tile.
+                if (!this.internalWorldMap.get(coordinate).isType(MapTile.Type.TRAP)) {
+                    // We have not already seen this trap tile. Update the internal map.
+                    this.internalWorldMap.put(coordinate, mapTile);
+
+                    trapTile = (TrapTile) mapTile;
+                    if (trapTile.getTrap().equals(TestAStarController.LAVA)) {
+                        lavaTrap = (LavaTrap) mapTile;
+                        if (lavaTrap.getKey() != 0) {
+                            // The lava trap contains a key. Save its location as a (key #, coordinate) pair.
+                            this.keyLocations.put(lavaTrap.getKey(), coordinate);
+                        }
+
+                    } else if (trapTile.getTrap().equals(TestAStarController.HEALTH)) {
+                        // This trap is a health trap. Save its location.
+                        this.healthLocations.put(coordinate, mapTile);
+                    }
                 }
 
-            }
-            // This indicates that I can do a left turn if I am not turning right
-            else{
-                lastTurnDirection = WorldSpatial.RelativeDirection.LEFT;
-                isTurningLeft = true;
             }
         }
     }
@@ -122,7 +145,7 @@ public class FollowWallController extends CarController implements ReconStrategy
     private void turnOnSpot(float targetAngle, float delta) {
         final float angleDelta = getSmallestAngleDelta(getAngle(), targetAngle);
 
-        if (Math.abs(angleDelta) < FollowWallController.MIN_NUM_DEGREES_IN_TURN) {
+        if (Math.abs(angleDelta) < TestAStarController.MIN_NUM_DEGREES_IN_TURN) {
             // We're close enough. Don't bother.
             return;
         }
@@ -147,7 +170,8 @@ public class FollowWallController extends CarController implements ReconStrategy
     private void turnOnSpot(WorldSpatial.Direction direction, float delta) {
         switch (direction) {
             case EAST:
-                turnOnSpot(WorldSpatial.EAST_DEGREE_MIN, delta);
+                turnOnSpot(WorldSpatial.EAST_DEGREE_MIN, delta); // TODO: Fix that this is sometimes fixed by using EAST_DEGREE_MAX
+                // TODO: Also fix that it wants to do (41, 3) -> (42, 3) for some reason.
                 break;
             case NORTH:
                 turnOnSpot(WorldSpatial.NORTH_DEGREE, delta);
@@ -172,7 +196,7 @@ public class FollowWallController extends CarController implements ReconStrategy
      */
     private float getSmallestAngleDelta(float fromAngle, float toAngle) {
         final float leftTurnDelta = toAngle - fromAngle;
-        final float rightTurnDelta = toAngle - fromAngle - FollowWallController.DEGREES_IN_FULL_ROTATION;
+        final float rightTurnDelta = toAngle - fromAngle - TestAStarController.DEGREES_IN_FULL_ROTATION;
 
         if (Math.abs(leftTurnDelta) < Math.abs(rightTurnDelta)) {
             return leftTurnDelta;
@@ -447,4 +471,5 @@ public class FollowWallController extends CarController implements ReconStrategy
         }
         return false;
     }
+
 }
