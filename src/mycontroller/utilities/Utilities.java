@@ -4,6 +4,10 @@ import utilities.Coordinate;
 import world.WorldSpatial;
 
 public class Utilities {
+    
+    public static final String LAVA = "lava";
+    public static final String HEALTH = "health";
+    
     public static boolean XOR(boolean b1, boolean b2) {
         return (b1 && !b2) || (!b1 && b2);
     }
