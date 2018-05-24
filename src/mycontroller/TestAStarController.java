@@ -46,6 +46,8 @@ public class TestAStarController extends CarController {
     public TestAStarController(Car car) {
         super(car);
         asc = new AStarController(car);
+        HashMap<Coordinate, MapTile> currentView = getView();
+        updateInternalWorldMap(currentView);
         asc.updateMap(internalWorldMap);
         asc.setDestination(new Coordinate(2, 2));
     }

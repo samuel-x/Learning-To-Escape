@@ -1,10 +1,8 @@
 package mycontroller;
 
-import mycontroller.utilities.Utilities;
 import tiles.MapTile;
 import tiles.TrapTile;
 import utilities.Coordinate;
-import world.WorldSpatial.Direction;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -134,7 +132,6 @@ public class AStar {
 
             // TODO: Macro define trap names.
             if (trapTile.getTrap().equals("lava")) {
-                System.out.printf("Lava! %f -> %f\n", gCost, gCost * GCOST_LAVA_MULTIPLIER);
                 gCost *= GCOST_LAVA_MULTIPLIER;
             } else if (trapTile.getTrap().equals("health")) {
                 gCost *= GCOST_HEALTH_MULTIPLIER;

@@ -6,29 +6,38 @@ import mycontroller.utilities.Utilities;
 import tiles.MapTile;
 import utilities.Coordinate;
 import world.Car;
-import world.WorldSpatial;
 import world.WorldSpatial.Direction;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 
+import static mycontroller.utilities.Utilities.getRelativeDirection;
+
+/** This class is responsible for navigating/controlling the car to a given destination from its current position. */
 public class AStarController extends CarController implements PathingStrategy {
 
+    // Speed to go at when we're at our destination's coordinate, but are moving towards its center.
     private static final float PRE_BRAKE_SPEED = 0.15f;
     // Units to be within the center of a tile before it counts as having been reached.
-    private static final float MOVEMENT_ACCURACY = 0.24f;
+    private static final float MOVEMENT_ACCURACY = 0.2f;
+    // The amount to scale up the speed from brakes in the path.
     private static final float SPEED_PER_TILE = 0.8f;
     private static final float DEGREES_IN_FULL_ROTATION = 360.0f;
+    // The minimum number of degrees to care about.
     private static final float MIN_NUM_DEGREES_IN_TURN = 5.0f;
+    // Minimum speed to allow for turning on the spot.
     private static final float MIN_SPEED_FOR_TURNING = 0.01f;
+    // Maximum speed to go at any given point.
     private static final float MAX_SPEED = 3f;
 
     private HashMap<Coordinate, MapTile> internalWorldMap;
     private Coordinate currPosition = new Coordinate(Math.round(getX()), Math.round(getY()));
     private ArrayList<PathUnit> currentPath = null;
+    // The index of the current path step in 'currentPath'.
     private int pathStep;
     private Coordinate destination = null;
+    // A flag to indicate if we've been given a new destination.
     private boolean haveNewDestination = false;
     private boolean pathComplete = true;
 
@@ -36,6 +45,10 @@ public class AStarController extends CarController implements PathingStrategy {
         super(car);
     }
 
+    /**
+     * Called every frame, executes the AStarController logic.
+     * @param delta is the time since the last frame update.
+     */
     @Override
     public void update(float delta) {
         if (pathComplete) {
@@ -47,6 +60,7 @@ public class AStarController extends CarController implements PathingStrategy {
         currPosition = Utilities.getCoordinatePosition(getX(), getY());
 
         if (haveNewDestination && getSpeed() > PRE_BRAKE_SPEED) {
+            // We have a new destination. Brake before pursuing it.
             applyBrake();
             return;
         } else if (haveNewDestination) {
@@ -55,11 +69,13 @@ public class AStarController extends CarController implements PathingStrategy {
 
         PathUnit currPathUnit = currentPath.get(pathStep);
         if (currPosition.equals(currPathUnit.target)) {
-            final float distanceFromTarget = getDistFromCoordinate(currPathUnit.target);
-            System.out.printf("Dist from target: %f\n", distanceFromTarget);
+            // We're on the same tile as the target.
+            final float distanceFromTarget = Utilities.getEuclideanDistance(this.currPosition, currPathUnit.target);
             if (distanceFromTarget < MOVEMENT_ACCURACY) {
+                // We've reached our next tile. Get ready to proceed to the next one.
                 pathStep++;
                 if (pathStep == currentPath.size()) {
+                    // We've finished our path.
                     pathComplete = true;
                     return;
                 }
@@ -69,14 +85,16 @@ public class AStarController extends CarController implements PathingStrategy {
 
                 currPathUnit = currentPath.get(pathStep);
             } else if (currPathUnit.brakeHere && getSpeed() > PRE_BRAKE_SPEED) {
+                // We're on a tile that requires braking. Brake.
                 applyBrake();
             }
         }
 
-
+        // Look towards our immediate target tile.
         final float angleToLook = getAngleTo(currPathUnit.target);
         turnOnSpot(angleToLook, delta);
 
+        // Only change speed if we're looking at the center of the target tile.
         if (isFacing(angleToLook)) {
             final float currSpeed = getSpeed();
             if (currSpeed < currPathUnit.speed) {
@@ -85,13 +103,14 @@ public class AStarController extends CarController implements PathingStrategy {
                 applyBrake();
             }
         }
-
-        System.out.printf("Going (%d, %d) (%s) -> (%d, %d) (%s) at %f / %f | Facing: %s\n", currPosition.x, currPosition.y,
-                getOrientation(), currPathUnit.target.x, currPathUnit.target.y,
-                getRelativeDirection(currPosition, currPathUnit.target), getSpeed(), currPathUnit.speed,
-                isFacing(angleToLook));
     }
 
+    /**
+     * Given a destination, sets the controller's internal state such that 'update' will pursue it. Involves calculating
+     * the path to the destination.
+     * @param destination is the destination to go to.
+     * @throws IllegalArgumentException if there's no path to the destination.
+     */
     public void setDestination(Coordinate destination) {
         this.destination = destination;
         ArrayList<Coordinate> path = AStar.getShortestPath(this.internalWorldMap, getBehindCoordinate(), this.currPosition, destination);
@@ -104,11 +123,26 @@ public class AStarController extends CarController implements PathingStrategy {
         this.pathStep = 1;
         this.haveNewDestination = true;
 
+        // In case we're setting the destination to our current position, for some reason.
         if (!this.currPosition.equals(destination)) {
             this.pathComplete = false;
         }
     }
 
+    /**
+     * Replaces the controller's map with the given version.
+     * @param map is the current map.
+     */
+    public void updateMap(HashMap<Coordinate, MapTile> map) {
+        this.internalWorldMap = map;
+    }
+
+    /**
+     * Gets the coordinate behind the car, based on its orientation. It is passed to 'AStar' as the position that the
+     * car was in previous to its current position. This isn't always true, but it's true most of the time and causes
+     * the intended effect in 'AStar'.
+     * @return the coordinate behind the car.
+     */
     private Coordinate getBehindCoordinate() {
         if (getOrientation() == Direction.EAST) {
             return new Coordinate(this.currPosition.x - 1, this.currPosition.y);
@@ -120,9 +154,14 @@ public class AStarController extends CarController implements PathingStrategy {
             return new Coordinate(this.currPosition.x, this.currPosition.y + 1);
         }
 
+        // Shouldn't be possible to get here.
         return null;
     }
 
+    /**
+     * Updates the path to the destination. Useful for taking into account what the car is seeing e.g. if it discovers
+     * lava in front of it, it may recalculate a path that goes around it.
+     */
     private void recalculateRoute() {
         ArrayList<Coordinate> path = AStar.getShortestPath(this.internalWorldMap, getBehindCoordinate(), this.currPosition, destination);
 
@@ -134,31 +173,30 @@ public class AStarController extends CarController implements PathingStrategy {
         this.pathStep = 1;
     }
 
-    public void updateMap(HashMap<Coordinate, MapTile> map) {
-        this.internalWorldMap = map;
-    }
-
+    /**
+     * Given a target, returns the shortest signed angle to it from the car's current angle.
+     * @param target is the coordinate to get the angle to.
+     * @return
+     */
     private float getAngleTo(Coordinate target) {
         final float diffx = target.x - getX();
         final float diffy = target.y - getY();
-        float angle = (float) Math.toDegrees(Math.atan2(diffy, diffx));
-
-        if (angle < 0) {
-            angle += DEGREES_IN_FULL_ROTATION;
-        }
-
-        return angle;
+        return (float) Math.toDegrees(Math.atan2(diffy, diffx));
     }
 
-    private float getDistFromCoordinate(Coordinate coordinate) {
-        return (float) Math.pow(Math.abs(Math.pow(getX() - coordinate.x, 2)) + Math.pow(getY() - coordinate.y, 2), 0.5);
-    }
-
+    /**
+     * Given a list of sequential coordinates (as provided by AStar), converts it into an array of PathUnits, allowing
+     * for speed control.
+     * @param path is a list of sequential coordinates (as provided by AStar).
+     * @return an array of PathUnits, representing the path.
+     */
     private ArrayList<PathUnit> getPathUnits(ArrayList<Coordinate> path) {
         ArrayList<PathUnit> pathUnits = new ArrayList<>();
 
+        // Represents the distance until the next brake.
         int distFromBrake = 1;
         boolean brakeHere;
+        // We'll iterate over the path from end to start.
         for (int i = path.size() -  2; i >= 0; i--) {
             if (i + 1 == path.size() - 1) {
                 // The coordinate after this one is the last one.
@@ -173,9 +211,11 @@ public class AStarController extends CarController implements PathingStrategy {
             Direction firstRelativeDirection = getRelativeDirection(path.get(i), path.get(i + 1));
             Direction secondRelativeDirection = getRelativeDirection(path.get(i + 1), path.get(i + 2));
             if (firstRelativeDirection != secondRelativeDirection) {
+                // Going from i + 1 to i + 2 requires a turn, so we'll need to brake.
                 distFromBrake = 1;
                 brakeHere = true;
             } else {
+                // We're going in a straight line here, so we don't need to brake.
                 brakeHere = false;
             }
 
@@ -189,24 +229,6 @@ public class AStarController extends CarController implements PathingStrategy {
 
         Collections.reverse(pathUnits);
         return pathUnits;
-    }
-
-    // TODO: Assumptions.
-    // This method will never be called for a speed greater than 2/3 (whichever allows for turning 90 degrees within 1
-    // tile. If asked to turn 180 degrees, it better be slow enough to not do a giant circle.
-    // In other words, it is the responsibility of the CALLER of this method to ensure that it is driving slow enough
-    // such that this method does not drive off course. This method assumes reasonable speeds. This means that
-    // Dijkstra's should slow down sufficiently before turning.
-    // This method also assumes that it should go to an adjacent tile of where the car is now. It is the responsibility
-    // of the caller to stop when the car is at the desired coordinate.
-    private void driveInDirection(WorldSpatial.Direction direction, float speed, float delta) {
-        if (getSpeed() < speed) {
-            applyForwardAcceleration();
-        } else if (getSpeed() > speed) {
-            applyBrake();
-        }
-
-        turnOnSpot(direction, delta);
     }
 
     /**
@@ -237,32 +259,12 @@ public class AStarController extends CarController implements PathingStrategy {
     }
 
     /**
-     * Overloaded variant of turnOnSpot(float, float), where a cardinal direction is provided instead.
-     * @param direction is the target cardinal direction to turn to.
-     * @param delta is the time since the previous frame. Don't mess with this.
+     * Given an angle, determines whether the car is currently (roughly) facing that angle.
+     * @param angle is the angle we want to check if we're facing.
+     * @return a boolean indicating whether or not we're facing the given angle.
      */
-    private void turnOnSpot(WorldSpatial.Direction direction, float delta) {
-        switch (direction) {
-            case EAST:
-                turnOnSpot(WorldSpatial.EAST_DEGREE_MIN, delta); // TODO: Fix that this is sometimes fixed by using EAST_DEGREE_MAX
-                // TODO: Also fix that it wants to do (41, 3) -> (42, 3) for some reason.
-                break;
-            case NORTH:
-                turnOnSpot(WorldSpatial.NORTH_DEGREE, delta);
-                break;
-            case WEST:
-                turnOnSpot(WorldSpatial.WEST_DEGREE, delta);
-                break;
-            case SOUTH:
-                turnOnSpot(WorldSpatial.SOUTH_DEGREE, delta);
-                break;
-        }
-    }
-
     private boolean isFacing(float angle) {
         final float diff = Math.abs(getSmallestAngleDelta(getAngle(), angle));
-        System.out.printf("isFacing: %f | %f -> %f\n", getAngle(), angle, diff);
-
         return diff < MIN_NUM_DEGREES_IN_TURN;
     }
 
@@ -281,31 +283,16 @@ public class AStarController extends CarController implements PathingStrategy {
         return delta;
     }
 
-    private Direction getRelativeDirection(Coordinate from, Coordinate to) {
-        assert (from.x == to.x || from.y == to.y);
-        final int xDisplacement = to.x - from.x;
-        final int yDisplacement = to.y - from.y;
-
-        if (xDisplacement > 0) {
-            return Direction.EAST;
-        } else if (xDisplacement < 0) {
-            return Direction.WEST;
-        } else if (yDisplacement > 0) {
-            return Direction.NORTH;
-        } else if (yDisplacement < 0) {
-            return Direction.SOUTH;
-        }
-
-        return getOrientation();
-    }
-
+    /**
+     * Used to hold information about the path. Contains info regarding what speed to go at and whether to brake.
+     */
     private class PathUnit {
 
         final Coordinate target;
         final float speed;
         final boolean brakeHere;
 
-        public PathUnit(Coordinate target, float speed, boolean brakeHere) {
+        PathUnit(Coordinate target, float speed, boolean brakeHere) {
             this.target = target;
             this.speed = speed;
             this.brakeHere = brakeHere;
