@@ -1,8 +1,12 @@
 package mycontroller.utilities;
 
+import tiles.MapTile;
+import tiles.TrapTile;
 import utilities.Coordinate;
 import world.WorldSpatial;
 import world.WorldSpatial.Direction;
+
+import java.util.HashMap;
 
 public class Utilities {
     
@@ -70,8 +74,6 @@ public class Utilities {
         return new Coordinate(Math.round(x), Math.round(y));
     }
 
-
-
     /**
      * Gets the coordinate behind the car, based on its orientation. It is passed to 'AStar' as the position that the
      * car was in previous to its current position. This isn't always true, but it's true most of the time and causes
@@ -91,5 +93,27 @@ public class Utilities {
 
         // Shouldn't be possible to get here.
         return null;
+    }
+
+    public static boolean isLava(HashMap<Coordinate, MapTile> map, Coordinate coordinate) {
+        MapTile mapTile = map.get(coordinate);
+        if (mapTile != null && mapTile.isType(MapTile.Type.TRAP)) {
+            TrapTile trapTile = (TrapTile) mapTile;
+
+            return trapTile.getTrap().equals(LAVA);
+        }
+
+        return false;
+    }
+
+    public static boolean isHealth(HashMap<Coordinate, MapTile> map, Coordinate coordinate) {
+        MapTile mapTile = map.get(coordinate);
+        if (mapTile != null && mapTile.isType(MapTile.Type.TRAP)) {
+            TrapTile trapTile = (TrapTile) mapTile;
+
+            return trapTile.getTrap().equals(HEALTH);
+        }
+
+        return false;
     }
 }

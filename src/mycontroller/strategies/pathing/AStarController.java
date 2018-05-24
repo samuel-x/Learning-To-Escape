@@ -19,11 +19,11 @@ import static mycontroller.utilities.Utilities.getRelativeDirection;
 public class AStarController extends CarController implements PathingStrategy {
 
     // Speed to go at when we're at our destination's coordinate, but are moving towards its center.
-    private static final float PRE_BRAKE_SPEED = 0.15f;
+    private static final float PRE_BRAKE_SPEED = 0.5f;
     // Units to be within the center of a tile before it counts as having been reached.
     private static final float MOVEMENT_ACCURACY = 0.2f;
     // The amount to scale up the speed from brakes in the path.
-    private static final float SPEED_PER_TILE = 0.8f;
+    private static final float SPEED_PER_TILE = 1.0f;
     private static final float DEGREES_IN_FULL_ROTATION = 360.0f;
     // The minimum number of degrees to care about.
     private static final float MIN_NUM_DEGREES_IN_TURN = 5.0f;
@@ -60,15 +60,21 @@ public class AStarController extends CarController implements PathingStrategy {
 
         currPosition = Utilities.getCoordinatePosition(getX(), getY());
 
-        if (haveNewDestination && getSpeed() > PRE_BRAKE_SPEED) {
-            // We have a new destination. Brake before pursuing it.
-            applyBrake();
-            return;
-        } else if (haveNewDestination) {
-            haveNewDestination = false;
+        if (haveNewDestination) {
+            if (isFacing(getAngleTo(destination))) {
+                // Don't need to stop since we're already facing where we're meant to go. If we stop, then we'll just
+                // accelerate again in the same direction anyway.
+                haveNewDestination = false;
+            } else if (getSpeed() > PRE_BRAKE_SPEED) {
+                applyBrake();
+            } else {
+                haveNewDestination = false;
+            }
         }
 
         PathUnit currPathUnit = currentPath.get(pathStep);
+        System.out.printf("Speed: %f/%f to (%d, %d)\n", getSpeed(), currPathUnit.speed, currPathUnit.target.x,
+                currPathUnit.target.y);
         if (currPosition.equals(currPathUnit.target)) {
             // We're on the same tile as the target.
             final float distanceFromTarget = Utilities.getEuclideanDistance(this.currPosition, currPathUnit.target);
