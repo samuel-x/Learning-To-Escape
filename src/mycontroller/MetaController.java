@@ -57,12 +57,14 @@ public class MetaController extends CarController {
 
     public void update(float delta) {
 
+        System.out.println("State: " + currentState);
         HashMap<Coordinate, MapTile> currentView = getView();
         updateInternalWorldMap(currentView);
 
         updateHealingMap();
 
-        if (getHealth() < HEALTH_THRESHOLD && !isHealing) {
+        if (getHealth() < HEALTH_THRESHOLD) {
+            System.out.println("Go heal u guy");
             this.currentState = State.HEALING;
         }
         else if (keyLocations.keySet().size() == keys) {
@@ -93,12 +95,12 @@ public class MetaController extends CarController {
     }
 
     private void runHealingUpdate(float delta) {
-        this.isHealing = true;
-        if (!Utilities.isHealth(getTileAtCurrentPos()) && getHealth() < 100) {
+        isHealing = false;
+        if (getHealth() < 100) {
             heal.update(delta);
         }
         else {
-            isHealing = false;
+            isHealing = true;
         }
     }
 
