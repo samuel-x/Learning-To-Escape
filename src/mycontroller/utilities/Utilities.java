@@ -2,6 +2,7 @@ package mycontroller.utilities;
 
 import utilities.Coordinate;
 import world.WorldSpatial;
+import world.WorldSpatial.Direction;
 
 public class Utilities {
     
@@ -38,7 +39,7 @@ public class Utilities {
      * @param to is the 'to' coordinate.
      * @return the direction from 'from' to 'to'.
      */
-    public static WorldSpatial.Direction getRelativeDirection(Coordinate from, Coordinate to) {
+    public static Direction getRelativeDirection(Coordinate from, Coordinate to) {
         // They must be either vertical or horizontal from one another.
         assert (Utilities.XOR(from.x == to.x, from.y == to.y));
 
@@ -46,13 +47,13 @@ public class Utilities {
         final int yDisplacement = to.y - from.y;
 
         if (xDisplacement > 0) {
-            return WorldSpatial.Direction.EAST;
+            return Direction.EAST;
         } else if (xDisplacement < 0) {
-            return WorldSpatial.Direction.WEST;
+            return Direction.WEST;
         } else if (yDisplacement > 0) {
-            return WorldSpatial.Direction.NORTH;
+            return Direction.NORTH;
         } else if (yDisplacement < 0) {
-            return WorldSpatial.Direction.SOUTH;
+            return Direction.SOUTH;
         }
 
         // This shouldn't happen, due to the assert statement at the beginning.
@@ -67,5 +68,28 @@ public class Utilities {
      */
     public static Coordinate getCoordinatePosition(float x, float y) {
         return new Coordinate(Math.round(x), Math.round(y));
+    }
+
+
+
+    /**
+     * Gets the coordinate behind the car, based on its orientation. It is passed to 'AStar' as the position that the
+     * car was in previous to its current position. This isn't always true, but it's true most of the time and causes
+     * the intended effect in 'AStar'.
+     * @return the coordinate behind the car.
+     */
+    public static Coordinate getBehindCoordinate(Coordinate coordinate, Direction orientation) {
+        if (orientation == Direction.EAST) {
+            return new Coordinate(coordinate.x - 1, coordinate.y);
+        } else if (orientation == Direction.NORTH) {
+            return new Coordinate(coordinate.x, coordinate.y - 1);
+        } else if (orientation == Direction.WEST) {
+            return new Coordinate(coordinate.x + 1, coordinate.y);
+        } else if (orientation == Direction.SOUTH) {
+            return new Coordinate(coordinate.x, coordinate.y + 1);
+        }
+
+        // Shouldn't be possible to get here.
+        return null;
     }
 }

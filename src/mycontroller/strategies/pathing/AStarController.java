@@ -8,6 +8,7 @@ import utilities.Coordinate;
 import world.Car;
 import world.WorldSpatial.Direction;
 
+import javax.rmi.CORBA.Util;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -113,7 +114,8 @@ public class AStarController extends CarController implements PathingStrategy {
      */
     public void setDestination(Coordinate destination) {
         this.destination = destination;
-        ArrayList<Coordinate> path = AStar.getShortestPath(this.internalWorldMap, getBehindCoordinate(), this.currPosition, destination);
+        ArrayList<Coordinate> path = AStar.getShortestPath(this.internalWorldMap,
+                Utilities.getBehindCoordinate(currPosition, getOrientation()), this.currPosition, destination);
 
         if (path == null) {
             throw new IllegalArgumentException("No path to the given destination.");
@@ -138,32 +140,12 @@ public class AStarController extends CarController implements PathingStrategy {
     }
 
     /**
-     * Gets the coordinate behind the car, based on its orientation. It is passed to 'AStar' as the position that the
-     * car was in previous to its current position. This isn't always true, but it's true most of the time and causes
-     * the intended effect in 'AStar'.
-     * @return the coordinate behind the car.
-     */
-    private Coordinate getBehindCoordinate() {
-        if (getOrientation() == Direction.EAST) {
-            return new Coordinate(this.currPosition.x - 1, this.currPosition.y);
-        } else if (getOrientation() == Direction.NORTH) {
-            return new Coordinate(this.currPosition.x, this.currPosition.y - 1);
-        } else if (getOrientation() == Direction.WEST) {
-            return new Coordinate(this.currPosition.x + 1, this.currPosition.y);
-        } else if (getOrientation() == Direction.SOUTH) {
-            return new Coordinate(this.currPosition.x, this.currPosition.y + 1);
-        }
-
-        // Shouldn't be possible to get here.
-        return null;
-    }
-
-    /**
      * Updates the path to the destination. Useful for taking into account what the car is seeing e.g. if it discovers
      * lava in front of it, it may recalculate a path that goes around it.
      */
     private void recalculateRoute() {
-        ArrayList<Coordinate> path = AStar.getShortestPath(this.internalWorldMap, getBehindCoordinate(), this.currPosition, destination);
+        ArrayList<Coordinate> path = AStar.getShortestPath(this.internalWorldMap,
+                Utilities.getBehindCoordinate(currPosition, getOrientation()), this.currPosition, destination);
 
         if (path == null) {
             throw new IllegalArgumentException("No path to the given destination.");
