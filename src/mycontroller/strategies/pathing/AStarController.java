@@ -2,6 +2,7 @@ package mycontroller.strategies.pathing;
 
 import controller.CarController;
 import mycontroller.AStar;
+import mycontroller.utilities.Utilities;
 import tiles.MapTile;
 import utilities.Coordinate;
 import world.Car;
@@ -38,11 +39,12 @@ public class AStarController extends CarController implements PathingStrategy {
     @Override
     public void update(float delta) {
         if (pathComplete) {
+            // We're at our current destination, don't do anything; just brake.
             applyBrake();
             return;
         }
 
-        currPosition = new Coordinate(Math.round(getX()), Math.round(getY()));
+        currPosition = Utilities.getCoordinatePosition(getX(), getY());
 
         if (haveNewDestination && getSpeed() > PRE_BRAKE_SPEED) {
             applyBrake();
