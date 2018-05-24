@@ -29,6 +29,8 @@ public class MetaController extends CarController {
     private final HashMap<Integer, Coordinate> keyLocations = new HashMap<>();
     // Holds coordinates that represent the finish line.
     private final ArrayList<Coordinate> finishLocations = new ArrayList<>();
+    // If we're currently pathing, this will contain a reference to the target.
+    private Coordinate destination = null;
 
     private State currentState = State.RECONNING;
 
@@ -42,15 +44,16 @@ public class MetaController extends CarController {
         // Save the coordinates finish tiles.
         saveFinishLineCoordinates();
 
-//        changeToPathing(new Coordinate(1, 1));
-        changeToReconning();
-
+        // Start off with reconnaissance.
+        beginRecon();
     }
 
     public void update(float delta) {
         // Update the car's internal map with what it can currently see.
         HashMap<Coordinate, MapTile> currentView = getView();
         updateInternalWorldMap(currentView);
+
+        determineState();
 
         // Let each component update their internal states, if applicable.
         updateComponents();
@@ -69,6 +72,35 @@ public class MetaController extends CarController {
     }
 
     /**
+     * Determines the state that the controller should be in i.e. what its priority is and which subcontroller should be
+     * in charge.
+     */
+    private void determineState() {
+
+        if (getKey() == 1) {
+            // We need to get to the finish.
+            Coordinate finishCoordinate = finishLocations.get(0);
+            if (currentState != State.PATHING || (currentState == State.PATHING && pathing.hasArrived())) {
+                // We're not already currently going there. Set the finish as the destination and begin pathing there.
+                this.destination = finishCoordinate;
+                beginPathing(destination);
+            }
+        } else if (keyLocations.containsKey(getKey() - 1)) {
+            // We know where the next key is.
+            Coordinate nextKeyLocation = keyLocations.get(getKey() - 1);
+            if (destination == null || !this.destination.equals(nextKeyLocation)) {
+                // We're not currently going for the key. Set the controller to start pathing there.
+                this.destination = nextKeyLocation;
+                beginPathing(destination);
+            }
+        } else if (currentState == State.PATHING && pathing.hasArrived()) {
+            // We've just finished a path, but have no more pathing to do. Start doing recon again.
+            beginRecon();
+            this.destination = null;
+        }
+    }
+
+    /**
      * Allows each component to update internal information, regardless of if they're "in charge" or not.
      */
     private void updateComponents() {
@@ -79,9 +111,8 @@ public class MetaController extends CarController {
     /**
      * Changes the current state of the MetaController to reconnaissance.
      */
-    private void changeToReconning() {
-        assert (this.currentState != State.RECONNING);
-
+    private void beginRecon() {
+        this.recon.reset();
         this.currentState = State.RECONNING;
     }
 
@@ -89,10 +120,8 @@ public class MetaController extends CarController {
      * Changes the current state of the MetaController to pathing to a specified goal.
      * @param destination is the destination two which MetaController wants to go to.
      */
-    private void changeToPathing(Coordinate destination) {
-        assert (this.currentState != State.PATHING);
-
-        pathing.updateMap(internalWorldMap);
+    private void beginPathing(Coordinate destination) {
+        this.pathing.updateMap(internalWorldMap);
         this.pathing.setDestination(destination);
         this.currentState = State.PATHING;
     }

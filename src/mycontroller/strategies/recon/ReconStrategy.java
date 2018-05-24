@@ -8,4 +8,5 @@ import java.util.HashMap;
 public interface ReconStrategy {
     void update(float delta);
     void updateMap(HashMap<Coordinate, MapTile> map);
+    void reset();
 }

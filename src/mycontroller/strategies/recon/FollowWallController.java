@@ -131,6 +131,11 @@ public class FollowWallController extends CarController implements ReconStrategy
 
     }
 
+    @Override
+    public void reset() {
+
+    }
+
     /**
      * Try to orient myself to a degree that I was supposed to be at if I am
      * misaligned.
