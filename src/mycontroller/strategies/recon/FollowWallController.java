@@ -110,6 +110,10 @@ public class FollowWallController extends CarController implements ReconStrategy
 
     }
 
+    @Override
+    public void updateMap(HashMap<Coordinate, MapTile> map) {
+    }
+
     /**
      * Readjust the car to the orientation we are in.
      * @param lastTurnDirection
