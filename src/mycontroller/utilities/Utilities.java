@@ -3,9 +3,9 @@ package mycontroller.utilities;
 import tiles.MapTile;
 import tiles.TrapTile;
 import utilities.Coordinate;
-import world.WorldSpatial;
 import world.WorldSpatial.Direction;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 
 public class Utilities {
@@ -99,12 +99,9 @@ public class Utilities {
             return new Coordinate(coordinate.x, coordinate.y - 1);
         } else if (orientation == Direction.WEST) {
             return new Coordinate(coordinate.x + 1, coordinate.y);
-        } else if (orientation == Direction.SOUTH) {
+        } else { // If facing south.
             return new Coordinate(coordinate.x, coordinate.y + 1);
         }
-
-        // Shouldn't be possible to get here.
-        return null;
     }
 
     public static boolean isLava(HashMap<Coordinate, MapTile> map, Coordinate coordinate) {
@@ -127,5 +124,21 @@ public class Utilities {
         }
 
         return false;
+    }
+
+    public static int getLavaCount(HashMap<Coordinate, MapTile> map, ArrayList<Coordinate> path) {
+        if (path == null) {
+            return 0;
+        }
+
+        int numLavaTiles = 0;
+
+        for (Coordinate coordinate : path) {
+            if (isLava(map, coordinate)) {
+                numLavaTiles++;
+            }
+        }
+
+        return numLavaTiles;
     }
 }

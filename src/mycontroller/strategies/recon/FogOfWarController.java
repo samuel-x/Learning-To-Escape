@@ -1,7 +1,7 @@
 package mycontroller.strategies.recon;
 
 import controller.CarController;
-import mycontroller.AStar;
+import mycontroller.utilities.AStar;
 import mycontroller.strategies.pathing.AStarController;
 import mycontroller.strategies.pathing.PathingStrategy;
 import mycontroller.utilities.Utilities;
@@ -92,6 +92,7 @@ public class FogOfWarController extends CarController implements ReconStrategy {
     @Override
     public void reset() {
         currTarget = null;
+        Collections.shuffle(unexploredCoordinates);
     }
 
     private void updateUnexploredCoordinates(HashMap<Coordinate, MapTile> view) {

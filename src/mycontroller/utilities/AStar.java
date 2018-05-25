@@ -1,4 +1,4 @@
-package mycontroller;
+package mycontroller.utilities;
 
 import mycontroller.utilities.Utilities;
 import tiles.MapTile;
@@ -15,8 +15,8 @@ import static mycontroller.utilities.Utilities.getRelativeDirection;
 
 public class AStar {
 
-    private static final float GCOST_LAVA_MULTIPLIER = 20.0f;
-    private static final float GCOST_HEALTH_MULTIPLIER = 0.2f;
+    private static final float GCOST_LAVA_MULTIPLIER = 100.0f;
+    private static final float GCOST_HEALTH_MULTIPLIER = 0.5f;
     private static final float GCOST_TURN_MULTIPLIER = 3f;
 
     private static HashMap<Coordinate, MapTile> map;

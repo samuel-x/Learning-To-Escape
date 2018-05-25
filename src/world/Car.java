@@ -190,6 +190,7 @@ public class Car extends Sprite{
 
 	/** Snap to an orientation if you get close to it! **/
 	public void turnLeft(float delta){
+		System.out.printf("Turning left\n");
 		angle += ROTATING_FACTOR * delta;
 		if(reversing){
 			angle *= -1;
@@ -274,6 +275,7 @@ public class Car extends Sprite{
 
 
 	public void turnRight(float delta) {
+		System.out.printf("Turning right\n");
 		angle -= ROTATING_FACTOR * delta;
 		if(reversing){
 			angle *= -1;
