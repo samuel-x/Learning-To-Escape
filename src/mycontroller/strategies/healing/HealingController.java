@@ -49,8 +49,13 @@ public class HealingController extends CarController implements HealingStrategy 
             if (getHealth() == FULL_HEALTH) {
                 this.finished = true;
                 this.destination = null;
+            } else {
+                if (getSpeed() < 0) {
+                    applyForwardAcceleration();
+                } else if (getSpeed() > 0) {
+                    applyBrake();
+                }
             }
-            applyBrake();
         }
     }
 

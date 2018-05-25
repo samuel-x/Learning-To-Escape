@@ -18,17 +18,18 @@ import static mycontroller.utilities.Utilities.getRelativeDirection;
 public class AStarController extends CarController implements PathingStrategy {
 
     // Speed to go at when we're at our destination's coordinate, but are moving towards its center.
-    private static final float BRAKE_SPEED = 0.5f;
+    private static final float BRAKE_SPEED = 0.7f;
     // Units to be within the center of a tile before it counts as having been reached.
-    private static final float MOVEMENT_ACCURACY = 0.1f;
+    private static final float MOVEMENT_ACCURACY = 0.2f;
     // The amount to scale up the speed from brakes in the path.
     private static final float SPEED_PER_TILE = 0.8f;
-    private static final float BASE_SPEED_LAVA_MULTIPLIER = 3f;
+    private static final float BASE_SPEED_LAVA_MULTIPLIER = 1.8f;
     private static final float DEGREES_IN_FULL_ROTATION = 360.0f;
     // The minimum number of degrees to care about when checking if we're facing.
     private static final float DEGREES_FACING_THRESHOLD = 12.0f;
+    private static final float MIN_TURNING_DEGREES = 5.0f;
     // Minimum speed to allow for turning on the spot.
-    private static final float MIN_SPEED_FOR_TURNING = 0.01f;
+    private static final float MIN_SPEED_FOR_TURNING = 0.1f;
     // Maximum speed to go at any given point.
     private static final float MAX_BASE_SPEED = 3f;
     private static final float LAVA_MAX_SPEED = 4.4f;
@@ -66,29 +67,52 @@ public class AStarController extends CarController implements PathingStrategy {
             calculatePathToDestination();
             prevPosition = currPosition;
         }
-        PathUnit currPathUnit = currentPath.get(pathStep);
+        PathUnit nextPathUnit = currentPath.get(pathStep);
+        // Look towards our immediate target tile.
+        final float angleToLook = getAngleTo(nextPathUnit.target);
 
-        // Determine if our destination is lava.
-        boolean brakeOnLava =  currentPath.get(currentPath.size() - 1).isLava;
-//        boolean brakeOnLava = false;
-
-        if (!isFacing(getAngleTo(currPathUnit.target)) && getSpeed() > BRAKE_SPEED
-//                || (brakeOnLava || !currPathUnit.isLava)) {
-                && currPathUnit.brakeHere) {
-            System.out.print("1: ");
-            applyBrake();
+        // TODO Fixing map 3:
+//        if (Utilities.isLava(internalWorldMap, currPosition) && !nextPathUnit.isLava
+        if (Utilities.isLava(internalWorldMap, currPosition)
+                && isFacing(angleToLook, DEGREES_FACING_THRESHOLD) && getSpeed() < 2) {
+            System.out.print("S: ");
+            applyForwardAcceleration();
+            return;
         }
 
-        // Look towards our immediate target tile.
-        final float angleToLook = getAngleTo(currPathUnit.target);
-        turnOnSpot(angleToLook, delta);
+        // Determine if our destination is lava.
+//        boolean brakeOnLava =  currentPath.get(currentPath.size() - 1).isLava;
+//        boolean brakeOnLava = false;
 
-        if (currPosition.equals(currPathUnit.target)) {
+//        if (!isFacing(getAngleTo(nextPathUnit.target)) && getSpeed() > MIN_SPEED_FOR_TURNING
+////                || (brakeOnLava || !nextPathUnit.isLava)) {
+//                && nextPathUnit.brakeHere) {
+//            System.out.print("1: ");
+//            applyBrake();
+//        }
+
+//        if (!isFacing(angleToLook)) {
+//            final float maxTurningSpeed = currentPath.get(pathStep - 1).brakeHere ? MIN_SPEED_FOR_TURNING : Float.MAX_VALUE;
+//            turnOnSpot(angleToLook, maxTurningSpeed, delta);
+//        }
+
+        // Determine turning speed.
+        float maxTurningSpeed;
+        if (pathStep == 0 || (!currentPath.get(pathStep - 1).brakeHere && isFacing(angleToLook, 2 * DEGREES_FACING_THRESHOLD))
+                || isFacing(angleToLook, DEGREES_FACING_THRESHOLD) || ((!currentPath.get(pathStep - 1).brakeHere || getSpeed() > 1.1 * BRAKE_SPEED) && currentPath.get(pathStep - 1).isLava)) {
+            maxTurningSpeed = Float.MAX_VALUE;
+        } else {
+            maxTurningSpeed = 2 * MIN_SPEED_FOR_TURNING;
+        }
+
+        turnOnSpot(angleToLook, maxTurningSpeed, delta);
+
+        if (currPosition.equals(nextPathUnit.target)) {
             // We're on the same tile as the target.
-            final float distanceFromTarget = Utilities.getEuclideanDistance(getX(), getY(), currPathUnit.target.x,
-                    currPathUnit.target.y);
-//            if (distanceFromTarget < MOVEMENT_ACCURACY || (!brakeOnLava && currPathUnit.isLava)) {
-            if (distanceFromTarget < MOVEMENT_ACCURACY || (!currPathUnit.brakeHere)) {
+            final float distanceFromTarget = Utilities.getEuclideanDistance(getX(), getY(), nextPathUnit.target.x,
+                    nextPathUnit.target.y);
+//            if (distanceFromTarget < MOVEMENT_ACCURACY || (!brakeOnLava && nextPathUnit.isLava)) {
+            if (distanceFromTarget < MOVEMENT_ACCURACY || (!nextPathUnit.brakeHere)) {
                 // We've reached our next tile. Get ready to proceed to the next one.
                 pathStep++;
                 if (pathStep == currentPath.size()) {
@@ -102,28 +126,31 @@ public class AStarController extends CarController implements PathingStrategy {
 //                // Recalculate route, in case something new has been discovered.
 //                calculatePathToDestination();
 
-                currPathUnit = currentPath.get(pathStep);
-            } else if (currPathUnit.brakeHere) {
-                // We're on a tile that requires braking. Brake.
-                if (getSpeed() > BRAKE_SPEED) {
-                    System.out.print("2: ");
-                    applyBrake();
-                } else {
-                    applyForwardAcceleration();
-                }
+                nextPathUnit = currentPath.get(pathStep);
             }
-        } else if (isFacing(angleToLook)) {
+//            } else if (nextPathUnit.brakeHere) {
+//                // We're on a tile that requires braking. Brake.
+//                if (getSpeed() > BRAKE_SPEED) {
+//                    System.out.print("2: ");
+//                    applyBrake();
+//                } else {
+//                    applyForwardAcceleration();
+//                }
+//            }
+        } else if (isFacing(angleToLook, DEGREES_FACING_THRESHOLD)) {
             // Only change speed if we're looking at the center of the target tile.
             final float currSpeed = getSpeed();
-            if (currSpeed < currPathUnit.speed) {
+            if (currSpeed < nextPathUnit.speed) {
+                System.out.print("1: ");
                 applyForwardAcceleration();
-            } else if (currSpeed > currPathUnit.speed) {
+            } else if (currSpeed > nextPathUnit.speed) {
+                System.out.print("3: ");
                 applyBrake();
             }
         }
 
         System.out.printf("((%d (%f), %d (%f)) -> (%d, %d) | Goal: (%d, %d) at %f\n", currPosition.x, getX(),
-                currPosition.y, getY(), currPathUnit.target.x, currPathUnit.target.y, destination.x, destination.y,
+                currPosition.y, getY(), nextPathUnit.target.x, nextPathUnit.target.y, destination.x, destination.y,
                 getSpeed());
     }
 
@@ -277,7 +304,7 @@ public class AStarController extends CarController implements PathingStrategy {
         } else {
             maxSpeed = MAX_BASE_SPEED;
         }
-        pathUnits.add(new PathUnit(path.get(0), Math.min(speed, maxSpeed), path.size() == 1, currTileIsLava));
+        pathUnits.add(new PathUnit(path.get(0), Math.min(speed, maxSpeed), currTileIsLava || path.size() == 1, currTileIsLava));
 
         Collections.reverse(pathUnits);
         return pathUnits;
@@ -289,17 +316,21 @@ public class AStarController extends CarController implements PathingStrategy {
      * @param targetAngle is the target angle to turn to.
      * @param delta is the time since the previous frame. Don't mess with this.
      */
-    private void turnOnSpot(float targetAngle, float delta) {
+    private void turnOnSpot(float targetAngle, float maxSpeed, float delta) {
         final float angleDelta = getSmallestAngleDelta(getAngle(), targetAngle);
 
-//        if (Math.abs(angleDelta) < DEGREES_FACING_THRESHOLD) {
-//            // We're close enough. Don't bother.
-//            return;
-//        }
+        if (Math.abs(angleDelta) < MIN_TURNING_DEGREES) {
+            // We're close enough. Don't bother.
+            return;
+        }
 
         // Ensure that we're moving forward at least a little bit, so that turning is possible.
         if (getSpeed() < MIN_SPEED_FOR_TURNING) {
+            System.out.print("2: ");
             applyForwardAcceleration();
+        } else if (getSpeed() > maxSpeed) {
+            System.out.print("4: ");
+            applyBrake();
         }
 
         if (angleDelta > 0) {
@@ -314,9 +345,9 @@ public class AStarController extends CarController implements PathingStrategy {
      * @param angle is the angle we want to check if we're facing.
      * @return a boolean indicating whether or not we're facing the given angle.
      */
-    private boolean isFacing(float angle) {
+    private boolean isFacing(float angle, float threshold) {
         final float diff = Math.abs(getSmallestAngleDelta(getAngle(), angle));
-        return diff < DEGREES_FACING_THRESHOLD;
+        return diff < threshold;
     }
 
     /**
