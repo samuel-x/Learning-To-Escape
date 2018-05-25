@@ -74,7 +74,7 @@ public class AStarController extends CarController implements PathingStrategy {
         // TODO Fixing map 3:
 //        if (Utilities.isLava(internalWorldMap, currPosition) && !nextPathUnit.isLava
         if (Utilities.isLava(internalWorldMap, currPosition)
-                && isFacing(angleToLook, DEGREES_FACING_THRESHOLD) && getSpeed() < 2) {
+                && isFacing(angleToLook, DEGREES_FACING_THRESHOLD) && getSpeed() < 2 && getKey() > 2) {
             System.out.print("S: ");
             applyForwardAcceleration();
             return;
