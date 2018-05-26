@@ -121,16 +121,10 @@ public class AStar {
         float gCost = getManhattanDistance(current, neighbor);
 
         // Apply trap multipliers, if applicable.
-        final MapTile mapTile = map.get(neighbor);
-        if (mapTile.isType(MapTile.Type.TRAP)) {
-            final TrapTile trapTile = (TrapTile) mapTile;
-
-            // TODO: Macro define trap names.
-            if (trapTile.getTrap().equals(Utilities.LAVA)) {
-                gCost *= GCOST_LAVA_MULTIPLIER;
-            } else if (trapTile.getTrap().equals(Utilities.HEALTH)) {
-                gCost *= GCOST_HEALTH_MULTIPLIER;
-            }
+        if (Utilities.isLava(map, neighbor)) {
+            gCost *= GCOST_LAVA_MULTIPLIER;
+        } else if (Utilities.isLava(map, neighbor)) {
+            gCost *= GCOST_HEALTH_MULTIPLIER;
         }
 
         // Determine if the movement would require a turn and penalize if so.
