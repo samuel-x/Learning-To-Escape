@@ -1,7 +1,6 @@
 package mycontroller.strategies.healing;
 
 import controller.CarController;
-import mycontroller.utilities.AStar;
 import mycontroller.strategies.pathing.AStarController;
 import mycontroller.strategies.pathing.PathingStrategy;
 import mycontroller.utilities.Utilities;
@@ -123,14 +122,14 @@ public class HealStopController extends CarController implements HealingStrategy
         // Get the first health location in our array and calculate the shortest path to it
         // Then, calculate the number of lava tiles on this path
         Coordinate bestHealthLocation = healthLocations.get(0);
-        ArrayList<Coordinate> bestShortestPath = AStar.getShortestPath(internalWorldMap, behindCoordinate, currPosition,
-                bestHealthLocation);
+        ArrayList<Coordinate> bestShortestPath = this.pathing.getBestPathTo(internalWorldMap, behindCoordinate,
+                currPosition, bestHealthLocation);
         int minNumLavaTiles = Utilities.getLavaCount(internalWorldMap, bestShortestPath);
 
         // Continue calculations for health locations in the array (if there are any)
         for (int i = 1; i < healthLocations.size(); i++) {
             Coordinate healthLocation = healthLocations.get(i);
-            ArrayList<Coordinate> currShortestPath = AStar.getShortestPath(internalWorldMap, behindCoordinate,
+            ArrayList<Coordinate> currShortestPath = this.pathing.getBestPathTo(internalWorldMap, behindCoordinate,
                     currPosition, healthLocation);
             int currNumLavaTiles = Utilities.getLavaCount(internalWorldMap, currShortestPath);
 

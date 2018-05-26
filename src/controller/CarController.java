@@ -27,7 +27,6 @@ public abstract class CarController {
 	 * Slows the car down
 	 */
 	public void applyBrake(){
-		System.out.println("Braking");
 		this.car.brake();
 	}
 	
@@ -35,7 +34,6 @@ public abstract class CarController {
 	 * Speeds the car up in the forward direction
 	 */
 	public void applyForwardAcceleration(){
-		System.out.println("Forward acceleration");
 		this.car.applyForwardAcceleration();
 	}
 	
@@ -43,7 +41,6 @@ public abstract class CarController {
 	 * Speeds the car up in the backwards direction
 	 */
 	public void applyReverseAcceleration(){
-		System.out.println("Reverse acceleration");
 		this.car.applyReverseAcceleration();
 	}
 	

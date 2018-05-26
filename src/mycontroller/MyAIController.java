@@ -7,7 +7,6 @@ import mycontroller.strategies.pathing.AStarController;
 import mycontroller.strategies.pathing.PathingStrategy;
 import mycontroller.strategies.recon.FogOfWarController;
 import mycontroller.strategies.recon.ReconStrategy;
-import mycontroller.utilities.AStar;
 import mycontroller.utilities.Utilities;
 import tiles.LavaTrap;
 import tiles.MapTile;
@@ -20,7 +19,7 @@ import java.util.HashMap;
 
 public class MyAIController extends CarController {
 
-    private enum State {RECONNING, HEALING, PATHING}
+    private enum ControllerState {RECONNING, HEALING, PATHING}
 
     private static final float MIN_HEALTH_BEFORE_HEAL = 50;
     private static final float MIN_HEALTH_BEFORE_GET_KEY = 100;
@@ -41,7 +40,7 @@ public class MyAIController extends CarController {
     private Coordinate destination = null;
 
     // The current task that the controller is doing.
-    private State currentState = State.RECONNING;
+    private ControllerState currentState = ControllerState.RECONNING;
 
     public MyAIController(Car car) {
         super(car);
@@ -92,7 +91,7 @@ public class MyAIController extends CarController {
         if (getKey() == 1) {
             // We should go to the exit.
             Coordinate finishCoordinate = finishLocations.get(0);
-            if (currentState != State.PATHING || (currentState == State.PATHING && pathing.hasArrived())) {
+            if (currentState != ControllerState.PATHING || pathing.hasArrived()) {
                 // We're not already currently going there. Determine if we should go now or heal first.
                 if (getHealth() < FULL_HEALTH) {
                     // Determine which of the path to exit or best healing position has fewer lava tiles along the way
@@ -101,7 +100,8 @@ public class MyAIController extends CarController {
                     Coordinate currPosition = Utilities.getCoordinatePosition(getX(), getY());
                     Coordinate behindPosition = Utilities.getBehindCoordinate(currPosition, getOrientation());
                     int numLavaTilesToFinish = Utilities.getLavaCount(internalWorldMap,
-                            AStar.getShortestPath(internalWorldMap, behindPosition, currPosition, finishLocations.get(0)));
+                            this.pathing.getBestPathTo(internalWorldMap, behindPosition, currPosition,
+                                    finishLocations.get(0)));
                     if (numLavaTilesToFinish <= numLavaTilesToBestHealthTrap) {
                         // We can just go to the finish.
                         this.destination = finishCoordinate;
@@ -112,7 +112,7 @@ public class MyAIController extends CarController {
                         if (healthLocations.size() > 0) {
                             // We know a healing location. Go to it.
                             beginHealing();
-                        } else if (currentState != State.RECONNING) {
+                        } else if (currentState != ControllerState.RECONNING) {
                             // We don't know a healing location. Look for one.
                             beginRecon();
                         }
@@ -130,12 +130,12 @@ public class MyAIController extends CarController {
                 // We're not currently going for the key. Decide if we should heal first or go straight there.
                 if (getHealth() < MIN_HEALTH_BEFORE_GET_KEY) {
                     // We need to heal first.
-                    if (currentState != State.HEALING && this.pathing.hasArrived()) {
+                    if (currentState != ControllerState.HEALING && this.pathing.hasArrived()) {
                         // We're not already healing.
                         if (healthLocations.size() > 0) {
                             // We know where a healing location is. Go there.
                             beginHealing();
-                        } else if (currentState != State.RECONNING && this.pathing.hasArrived()) {
+                        } else if (currentState != ControllerState.RECONNING && this.pathing.hasArrived()) {
                             // We don't know where a healing location is. Go look for it.
                             beginRecon();
                         }
@@ -148,27 +148,26 @@ public class MyAIController extends CarController {
             }
         } else {
             // There's no key or finish to go to. Begin reconning or healing.
-            if (currentState == State.HEALING) {
+            if (currentState == ControllerState.HEALING) {
                 // We're currently healing.
                 if (this.healing.isFinished()) {
                     // Healing is finished. Go back to reconning.
                     beginRecon();
                 }
-            } else if (getHealth() < MIN_HEALTH_BEFORE_HEAL || currentState == State.PATHING) {
+            } else if (getHealth() < MIN_HEALTH_BEFORE_HEAL || currentState == ControllerState.PATHING) {
                 // We need to heal and/or we just got done getting a key.
-                if (currentState != State.HEALING && this.pathing.hasArrived()) {
+                if (currentState != ControllerState.HEALING && this.pathing.hasArrived()) {
                     // We're not already healing.
                     if (healthLocations.size() > 0) {
                         // We know where a healing location is. Go there.
                         beginHealing();
-                    } else if (currentState != State.RECONNING && this.pathing.hasArrived()) {
+                    } else if (currentState != ControllerState.RECONNING && this.pathing.hasArrived()) {
                         // We don't know where a healing location is. Go look for it.
                         beginRecon();
                     }
                 }
             } else {
-                if (currentState != State.RECONNING) {
-                    System.out.println("Recon 2");
+                if (currentState != ControllerState.RECONNING) {
                     beginRecon();
                     this.destination = null;
                 }
@@ -190,12 +189,12 @@ public class MyAIController extends CarController {
      */
     private void beginRecon() {
         this.recon.reset();
-        this.currentState = State.RECONNING;
+        this.currentState = ControllerState.RECONNING;
     }
 
     private void beginHealing() {
         this.healing.reset();
-        this.currentState = State.HEALING;
+        this.currentState = ControllerState.HEALING;
     }
 
     /**
@@ -205,7 +204,7 @@ public class MyAIController extends CarController {
     private void beginPathing(Coordinate destination) {
         this.pathing.updateMap(internalWorldMap);
         this.pathing.setDestination(destination);
-        this.currentState = State.PATHING;
+        this.currentState = ControllerState.PATHING;
     }
 
     /**

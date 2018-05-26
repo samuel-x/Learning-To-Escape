@@ -1,7 +1,6 @@
 package mycontroller.strategies.recon;
 
 import controller.CarController;
-import mycontroller.utilities.AStar;
 import mycontroller.strategies.pathing.AStarController;
 import mycontroller.strategies.pathing.PathingStrategy;
 import mycontroller.utilities.Utilities;
@@ -20,7 +19,6 @@ public class FogOfWarController extends CarController implements ReconStrategy {
     /** A list of unseen coordinates */
     private ArrayList<Coordinate> unexploredCoordinates = new ArrayList<>();
     private HashMap<Coordinate, MapTile> map = null;
-    private Coordinate currPosition = Utilities.getCoordinatePosition(getX(), getY());
     private Coordinate currTarget = null;
     private final boolean randomExploration;
     private final boolean beOnTarget;
@@ -43,7 +41,7 @@ public class FogOfWarController extends CarController implements ReconStrategy {
 
     @Override
     public void update(float delta) {
-        currPosition = Utilities.getCoordinatePosition(getX(), getY());
+        Coordinate currPosition = Utilities.getCoordinatePosition(getX(), getY());
 
         if (beOnTarget && currTarget != null
                 && (pathing.hasArrived() || Utilities.isLava(map, currTarget))) {
@@ -120,7 +118,7 @@ public class FogOfWarController extends CarController implements ReconStrategy {
 
                 // Test that it's possible to get to.
                 Coordinate currPosition = Utilities.getCoordinatePosition(getX(), getY());
-                if (AStar.getShortestPath(map, Utilities.getBehindCoordinate(currPosition, getOrientation()),
+                if (this.pathing.getBestPathTo(map, Utilities.getBehindCoordinate(currPosition, getOrientation()),
                         currPosition, coordinate) != null) {
                     // This coordinate is possible to get to, add it to the list of unexplored tiles.
                     this.unexploredCoordinates.add(coordinate);

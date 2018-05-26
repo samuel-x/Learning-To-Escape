@@ -30,7 +30,16 @@ public interface PathingStrategy {
      */
     void setDestination(Coordinate destination);
 
-    ArrayList<Coordinate> getCurrentPath();
+    /**
+     * Returns the best path to the given destination using the pathing algorithm used by the strategy.
+     * @param map is the current map.
+     * @param behindPos is the position behind the current position.
+     * @param currPos is the current position.
+     * @param goal is the destination.
+     * @return a list of sequential coordinates representing the path from currPos to goal.
+     */
+    ArrayList<Coordinate> getBestPathTo(HashMap<Coordinate, MapTile> map, Coordinate behindPos, Coordinate currPos,
+        Coordinate goal);
 
     /**
      * This returns a boolean of whether we have arrived at our destination or not.

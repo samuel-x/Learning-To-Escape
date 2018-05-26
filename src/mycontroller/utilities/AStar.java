@@ -1,6 +1,5 @@
 package mycontroller.utilities;
 
-import mycontroller.utilities.Utilities;
 import tiles.MapTile;
 import tiles.TrapTile;
 import utilities.Coordinate;
@@ -28,15 +27,13 @@ public class AStar {
     // Nodes that have been evaluated.
     private static ArrayList<Coordinate> exploredNodes;
     // Nodes that are adjacent to an explored node, but have not been evaluated themselves yet.
+    // Comes in (Coordinate, F-Cost) pairs.
     private static HashMap<Coordinate, Float> unexploredKnownNodes;
 
     // A map to keep track of the fastest way to get to each node. Pairs are in (to, from) form.
     private static HashMap<Coordinate, Coordinate> cameFrom;
     // G-Cost of A: The cost to get from the starting node to node A.
     private static HashMap<Coordinate, Float> gCosts;
-    // F-Cost of A: The total cost of getting from the start node to the target via node A. FCost = GCost + HCost
-    private static HashMap<Coordinate, Float> fCosts;
-
 
     /**
      * Given a map, start, and goal, returns a list of coordinates that go from start to goal.
@@ -58,11 +55,9 @@ public class AStar {
         unexploredKnownNodes = new HashMap<>();
         cameFrom = new HashMap<>();
         gCosts = new HashMap<>();
-        fCosts = new HashMap<>();
 
         // Costs for the starting node can be determined immediately.
         gCosts.put(start, 0.0f);
-        fCosts.put(start, getHCost(start, goal));
         unexploredKnownNodes.put(start, 0.0f);
 
         Coordinate current;
@@ -98,7 +93,6 @@ public class AStar {
                 cameFrom.put(neighbor, current);
                 gCosts.put(neighbor, gCost);
                 fCost = gCost + getHCost(neighbor, goal);
-                fCosts.put(neighbor, fCost);
                 unexploredKnownNodes.put(neighbor, fCost);
             }
         }
