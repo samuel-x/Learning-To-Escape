@@ -17,7 +17,7 @@ public class FogOfWarController extends CarController implements ReconStrategy {
 
     private PathingStrategy pathing;
 
-    // A list of unseen coordinates.
+    /** A list of unseen coordinates */
     private ArrayList<Coordinate> unexploredCoordinates = new ArrayList<>();
     private HashMap<Coordinate, MapTile> map = null;
     private Coordinate currPosition = Utilities.getCoordinatePosition(getX(), getY());
@@ -108,6 +108,10 @@ public class FogOfWarController extends CarController implements ReconStrategy {
         }
     }
 
+    /**
+     * This determines all of the unexplored coordinates in the map. This is designed to only run once.
+     * @param map The internal map.
+     */
     private void populateUnexploredCoordinates(HashMap<Coordinate, MapTile> map) {
         for (Coordinate coordinate : map.keySet()) {
             MapTile mapTile = map.get(coordinate);
@@ -131,6 +135,12 @@ public class FogOfWarController extends CarController implements ReconStrategy {
         }
     }
 
+    /**
+     * This compares two coordinates to be used if we wish to traverse the map in order.
+     * @param c1 The first coordinate.
+     * @param c2 The second coordinate.
+     * @return The ordering of the coordinates.
+     */
     private static int compareCoordinates(Coordinate c1, Coordinate c2) {
         if (c1.x < c2.x) {
             return -1;
