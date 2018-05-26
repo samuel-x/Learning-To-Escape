@@ -61,8 +61,6 @@ public class FogOfWarController extends CarController implements ReconStrategy {
         }
 
         // Let the pathing component route to 'currTarget'.
-        System.out.printf("(%d, %d) -> (%d, %d) | Num unexplored: %d\n", currPosition.x, currPosition.y, currTarget.x,
-                currTarget.y, unexploredCoordinates.size());
         pathing.update(delta);
     }
 

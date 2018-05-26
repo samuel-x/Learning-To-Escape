@@ -228,8 +228,6 @@ public class MyAIController extends CarController {
      */
     private void updateInternalWorldMap(HashMap<Coordinate, MapTile> view) {
         MapTile mapTile;
-        TrapTile trapTile;
-        LavaTrap lavaTrap;
 
         for (Coordinate coordinate : view.keySet()) {
             mapTile = view.get(coordinate);
