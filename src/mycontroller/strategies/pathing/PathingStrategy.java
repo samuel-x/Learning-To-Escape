@@ -6,6 +6,10 @@ import utilities.Coordinate;
 import java.util.ArrayList;
 import java.util.HashMap;
 
+/**
+ * This interface facilitates pathing-related controls. An implementing class provides way for the caller to path to a
+ * specified coordinate.
+ */
 public interface PathingStrategy {
 
     /**

@@ -16,7 +16,7 @@ import java.util.HashMap;
  * This class represents a healing controller that is responsible for finding a path to the best healing location
  * and traversing to the tile.
  */
-public class HealingController extends CarController implements HealingStrategy {
+public class HealStopController extends CarController implements HealingStrategy {
 
     private static final float FULL_HEALTH = 100;
 
@@ -30,8 +30,9 @@ public class HealingController extends CarController implements HealingStrategy 
     /** The position of the car at the latest update */
     private Coordinate latestPosition;
 
-    public HealingController(Car car) {
+    public HealStopController(Car car) {
         super(car);
+
         this.latestPosition = Utilities.getCoordinatePosition(getX(), getY());
         this.pathing = new AStarController(car);
     }

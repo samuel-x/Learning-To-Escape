@@ -5,6 +5,10 @@ import utilities.Coordinate;
 
 import java.util.HashMap;
 
+/**
+ * This interface facilitates recon-related controls. An implementing class provides way for the caller to explore the
+ * map.
+ */
 public interface ReconStrategy {
     /**
      * This updates the simulation one frame with this strategy.
