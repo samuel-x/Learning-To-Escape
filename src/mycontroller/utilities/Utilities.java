@@ -3,16 +3,22 @@ package mycontroller.utilities;
 import tiles.MapTile;
 import tiles.TrapTile;
 import utilities.Coordinate;
-import world.WorldSpatial;
 import world.WorldSpatial.Direction;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 
 public class Utilities {
     
-    public static final String LAVA = "lava";
-    public static final String HEALTH = "health";
-    
+    private static final String LAVA = "lava";
+    private static final String HEALTH = "health";
+
+    /**
+     * Logical XOR method.
+     * @param b1 is the first input.
+     * @param b2 is the second input.
+     * @return is b1 and b2 xor'd together.
+     */
     public static boolean XOR(boolean b1, boolean b2) {
         return (b1 && !b2) || (!b1 && b2);
     }
@@ -99,14 +105,17 @@ public class Utilities {
             return new Coordinate(coordinate.x, coordinate.y - 1);
         } else if (orientation == Direction.WEST) {
             return new Coordinate(coordinate.x + 1, coordinate.y);
-        } else if (orientation == Direction.SOUTH) {
+        } else { // If facing south.
             return new Coordinate(coordinate.x, coordinate.y + 1);
         }
-
-        // Shouldn't be possible to get here.
-        return null;
     }
 
+    /**
+     * Determines whether the give coordinate is a lava tile.
+     * @param map is the map to check with
+     * @param coordinate is the coordinate to be checked.
+     * @return whether the given coordinate is a lava tile according to the given map.
+     */
     public static boolean isLava(HashMap<Coordinate, MapTile> map, Coordinate coordinate) {
         MapTile mapTile = map.get(coordinate);
         if (mapTile != null && mapTile.isType(MapTile.Type.TRAP)) {
@@ -118,6 +127,12 @@ public class Utilities {
         return false;
     }
 
+    /**
+     * Determines whether the give coordinate is a health tile.
+     * @param map is the map to check with
+     * @param coordinate is the coordinate to be checked.
+     * @return whether the given coordinate is a health tile according to the given map.
+     */
     public static boolean isHealth(HashMap<Coordinate, MapTile> map, Coordinate coordinate) {
         MapTile mapTile = map.get(coordinate);
         if (mapTile != null && mapTile.isType(MapTile.Type.TRAP)) {
@@ -127,5 +142,27 @@ public class Utilities {
         }
 
         return false;
+    }
+
+    /**
+     * Counts the number of lava tiles in a given path.
+     * @param map is the map to check against.
+     * @param path is the list of coordinates to check.
+     * @return the number lava tiles in the path.
+     */
+    public static int getLavaCount(HashMap<Coordinate, MapTile> map, ArrayList<Coordinate> path) {
+        if (path == null) {
+            return 0;
+        }
+
+        int numLavaTiles = 0;
+
+        for (Coordinate coordinate : path) {
+            if (isLava(map, coordinate)) {
+                numLavaTiles++;
+            }
+        }
+
+        return numLavaTiles;
     }
 }
